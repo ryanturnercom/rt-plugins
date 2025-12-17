@@ -1,0 +1,11 @@
+# rt-voice configuration
+# Copy this file to .claude/rt-voice.toml in your project
+
+# Enable or disable all sounds
+enabled = true
+
+# Theme name (folder name in themes/)
+theme = "default"
+
+# Master volume (0.0 to 1.0)
+volume = 0.8

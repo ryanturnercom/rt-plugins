@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p:*)",
+      "Bash(cp:*)",
+      "Bash(python scripts/play_sound.py:*)",
+      "Bash(cat:*)",
+      "Bash(git init:*)",
+      "mcp__github__get_me",
+      "Bash(git add:*)"
+    ]
+  }
+}

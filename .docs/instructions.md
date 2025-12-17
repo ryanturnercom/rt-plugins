@@ -1,0 +1,3 @@
+I want you to create a Claude Code specific plug-in that I can use in any other project that I want. This plug-in will add hooks to the local project that it's in. These hooks will play sounds from various sound packs. The sounds will be played regardless of operating system utilizing Python. And these sounds will be organized by theme so they'll have a theme to them and you just specify the theme in a config and all of those particular sounds will be played.
+
+Ask me questions one-by-one until we have enough information to start 

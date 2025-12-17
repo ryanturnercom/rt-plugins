@@ -1,0 +1,14 @@
+{
+  "name": "rt-plugins",
+  "owner": {
+    "name": "rt"
+  },
+  "plugins": [
+    {
+      "name": "rt-voice",
+      "source": "./rt-voice",
+      "description": "Play themed sounds for Claude Code hook events",
+      "version": "1.0.0"
+    }
+  ]
+}

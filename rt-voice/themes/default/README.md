@@ -1,0 +1,1 @@
+Created via Elevanlabs.io with the Clyde Voice by Ryan Turner

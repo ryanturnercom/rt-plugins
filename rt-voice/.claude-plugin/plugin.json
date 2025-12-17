@@ -1,0 +1,10 @@
+{
+  "name": "rt-voice",
+  "version": "1.0.0",
+  "description": "Play themed sounds for Claude Code hook events",
+  "author": {
+    "name": "rt"
+  },
+  "license": "MIT",
+  "keywords": ["audio", "sounds", "voice", "themes", "hooks"]
+}
