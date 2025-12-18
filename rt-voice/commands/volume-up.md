@@ -1,3 +1,7 @@
+---
+description: Increases volume by 0.1 (max 1.0)
+---
+
 Increase the rt-voice volume by 0.1 (max 1.0).
 
 1. Read the user's config at `.claude/rt-voice.toml` in the current working directory

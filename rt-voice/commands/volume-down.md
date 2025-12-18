@@ -1,3 +1,7 @@
+---
+description: Decreases volume by 0.1 (min 0.0)
+---
+
 Decrease the rt-voice volume by 0.1 (min 0.0).
 
 1. Read the user's config at `.claude/rt-voice.toml` in the current working directory

@@ -1,3 +1,7 @@
+---
+description: Creates a new theme folder with all event subfolders
+---
+
 Create a new rt-voice sound theme with the name provided in $ARGUMENTS.
 
 If no theme name is provided, ask the user for one.

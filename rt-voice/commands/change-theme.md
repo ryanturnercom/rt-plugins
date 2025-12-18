@@ -1,3 +1,7 @@
+---
+description: Lists available themes and lets user select one
+---
+
 Change the rt-voice sound theme.
 
 1. List all available themes by reading the folders in `rt-voice/themes/` directory (use the CLAUDE_PLUGIN_ROOT or find the rt-voice plugin location)
