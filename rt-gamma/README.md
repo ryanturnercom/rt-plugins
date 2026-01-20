@@ -17,7 +17,7 @@ Convert Markdown files to beautiful [Gamma.app](https://gamma.app) presentations
 | Command | Description |
 |---------|-------------|
 | `/rt-gamma <path>` | Convert markdown file or folder to Gamma presentations |
-| `/markdown-to-presentation <file>` | Transform any markdown into presentation-ready format |
+| `/rt-presentation <file>` | Transform any markdown into presentation-ready format |
 
 ## Usage
 
@@ -40,7 +40,7 @@ Converts all `*_presentation.md` files in the folder (and subfolders) that don't
 ### Create Presentation-Ready Markdown
 
 ```bash
-/markdown-to-presentation my_document.md
+/rt-presentation my_document.md
 ```
 
 Transforms any markdown document into presentation format with:
@@ -50,7 +50,7 @@ Transforms any markdown document into presentation format with:
 - Outputs `*_presentation.md` file
 
 **Typical workflow:**
-1. `/markdown-to-presentation notes.md` → creates `notes_presentation.md`
+1. `/rt-presentation notes.md` → creates `notes_presentation.md`
 2. `/rt-gamma notes_presentation.md` → uploads to Gamma
 
 ## First-Time Setup
