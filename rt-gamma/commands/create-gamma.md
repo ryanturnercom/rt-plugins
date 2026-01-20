@@ -26,6 +26,8 @@ If the config file does NOT exist:
 
 3. If "Interactive setup":
    - Ask for their Gamma API key (required): "Enter your Gamma API key (get one at https://gamma.app/settings/api)"
+   - Ask for default theme ID (optional): "Enter a Gamma theme ID, or leave blank for default theme"
+   - Ask for default template ID (optional): "Enter a Gamma template ID for template-based generation, or leave blank for standard generation"
    - Ask for default text mode: "preserve" (keep text as-is), "generate" (expand content), "condense" (summarize)
    - Ask for default image source: "ai" (AI generated), "unsplash", "none"
    - Create the config file with their values
