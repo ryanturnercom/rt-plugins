@@ -7,7 +7,18 @@
       "Bash(cat:*)",
       "Bash(git init:*)",
       "mcp__github__get_me",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "mcp__github__create_repository",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: rt-voice plugin for Claude Code\n\n- Plugin marketplace with rt-voice audio plugin\n- Plays themed sounds for Claude Code hook events\n- Supports 10 hook events (SessionStart, SessionEnd, PreToolUse, etc.)\n- Includes default theme with MP3 sounds\n- Slash commands for theme management and volume control\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Skill(superpowers:systematic-debugging)",
+      "Bash(git commit:*)",
+      "Skill(superpowers:brainstorming)",
+      "Skill(superpowers:writing-plans)",
+      "Skill(superpowers:subagent-driven-development)",
+      "Skill(superpowers:finishing-a-development-branch)"
     ]
   }
 }

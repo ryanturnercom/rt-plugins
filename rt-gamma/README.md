@@ -12,9 +12,16 @@ Convert Markdown files to beautiful [Gamma.app](https://gamma.app) presentations
 /plugin install rt-gamma@rt-plugins
 ```
 
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `/rt-gamma <path>` | Convert markdown file or folder to Gamma presentations |
+| `/markdown-to-presentation <file>` | Transform any markdown into presentation-ready format |
+
 ## Usage
 
-### Single File
+### Generate Presentation from Markdown
 
 ```bash
 /rt-gamma my_presentation.md
@@ -29,6 +36,22 @@ Converts a single markdown file to a Gamma presentation.
 ```
 
 Converts all `*_presentation.md` files in the folder (and subfolders) that don't already have `.html` files.
+
+### Create Presentation-Ready Markdown
+
+```bash
+/markdown-to-presentation my_document.md
+```
+
+Transforms any markdown document into presentation format with:
+- One idea per slide
+- Speaker notes with delivery cues
+- `---` slide breaks (Gamma-compatible)
+- Outputs `*_presentation.md` file
+
+**Typical workflow:**
+1. `/markdown-to-presentation notes.md` → creates `notes_presentation.md`
+2. `/rt-gamma notes_presentation.md` → uploads to Gamma
 
 ## First-Time Setup
 
