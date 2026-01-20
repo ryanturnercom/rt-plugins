@@ -16,15 +16,15 @@ Convert Markdown files to beautiful [Gamma.app](https://gamma.app) presentations
 
 | Command | Description |
 |---------|-------------|
-| `/rt-gamma <path>` | Convert markdown file or folder to Gamma presentations |
-| `/rt-presentation <file>` | Transform any markdown into presentation-ready format |
+| `/rt-gamma:create-gamma <path>` | Convert markdown file or folder to Gamma presentations |
+| `/rt-gamma:create-presentation <file>` | Transform any markdown into presentation-ready format |
 
 ## Usage
 
 ### Generate Presentation from Markdown
 
 ```bash
-/rt-gamma my_presentation.md
+/rt-gamma:create-gamma my_presentation.md
 ```
 
 Converts a single markdown file to a Gamma presentation.
@@ -32,7 +32,7 @@ Converts a single markdown file to a Gamma presentation.
 ### Batch Mode
 
 ```bash
-/rt-gamma ./presentations/
+/rt-gamma:create-gamma ./presentations/
 ```
 
 Converts all `*_presentation.md` files in the folder (and subfolders) that don't already have `.html` files.
@@ -40,7 +40,7 @@ Converts all `*_presentation.md` files in the folder (and subfolders) that don't
 ### Create Presentation-Ready Markdown
 
 ```bash
-/rt-presentation my_document.md
+/rt-gamma:create-presentation my_document.md
 ```
 
 Transforms any markdown document into presentation format with:
@@ -50,8 +50,8 @@ Transforms any markdown document into presentation format with:
 - Outputs `*_presentation.md` file
 
 **Typical workflow:**
-1. `/rt-presentation notes.md` → creates `notes_presentation.md`
-2. `/rt-gamma notes_presentation.md` → uploads to Gamma
+1. `/rt-gamma:create-presentation notes.md` → creates `notes_presentation.md`
+2. `/rt-gamma:create-gamma notes_presentation.md` → uploads to Gamma
 
 ## First-Time Setup
 
@@ -64,7 +64,7 @@ You'll need a Gamma API key from [gamma.app/settings/api](https://gamma.app/sett
 
 ## Configuration
 
-Config file: `.claude/rt-gamma.toml`
+Config file: `.claude/rt-gamma:create-gamma.toml`
 
 ```toml
 # Required: Your Gamma API key
@@ -162,7 +162,7 @@ Thanks for watching!
 
 ### "API key is missing"
 
-Add your Gamma API key to `.claude/rt-gamma.toml`:
+Add your Gamma API key to `.claude/rt-gamma:create-gamma.toml`:
 
 ```toml
 api_key = "your-key-here"
