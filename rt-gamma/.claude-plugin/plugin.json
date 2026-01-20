@@ -1,0 +1,10 @@
+{
+  "name": "rt-gamma",
+  "version": "1.0.0",
+  "description": "Convert Markdown to Gamma.app presentations via slash command",
+  "author": {
+    "name": "rt"
+  },
+  "license": "MIT",
+  "keywords": ["gamma", "presentations", "markdown", "slides", "converter"]
+}
