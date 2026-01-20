@@ -18,6 +18,7 @@ Convert Markdown files to beautiful [Gamma.app](https://gamma.app) presentations
 |---------|-------------|
 | `/rt-gamma:create-gamma <path>` | Convert markdown file or folder to Gamma presentations |
 | `/rt-gamma:create-presentation <file>` | Transform any markdown into presentation-ready format |
+| `/rt-gamma:create-config` | Create config file template (won't overwrite existing) |
 
 ## Usage
 
