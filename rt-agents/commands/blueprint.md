@@ -1,5 +1,4 @@
 ---
-name: blueprint
 description: Create a structured blueprint with epics and tasks for a feature or project. Reads tech preferences from .claude/rt-agents.toml if available.
 ---
 

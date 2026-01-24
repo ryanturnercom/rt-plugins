@@ -1,5 +1,4 @@
 ---
-name: create-config
 description: Create rt-agents configuration file and open it for editing
 ---
 
