@@ -58,3 +58,5 @@ Missing sounds are silently skipped.
 
 - Python 3.8+
 - pygame (auto-installed on first run)
+
+**Note:** The plugin automatically uses your system Python even when working in projects with virtual environments, so pygame won't pollute your project venvs.

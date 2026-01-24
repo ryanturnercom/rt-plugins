@@ -9,13 +9,42 @@ import os
 import random
 from pathlib import Path
 
-# Auto-install pygame if missing
+
+def get_base_python():
+    """Get the base/system Python executable, outside any venv."""
+    if sys.prefix == sys.base_prefix:
+        # Not in a venv
+        return None
+
+    # We're in a venv - find the base Python
+    if sys.platform == "win32":
+        base_python = Path(sys.base_exec_prefix) / "python.exe"
+    else:
+        base_python = Path(sys.base_exec_prefix) / "bin" / "python3"
+        if not base_python.exists():
+            base_python = Path(sys.base_exec_prefix) / "bin" / "python"
+
+    return base_python if base_python.exists() else None
+
+
+def reexec_with_base_python():
+    """Re-execute this script using the base/system Python if in a venv."""
+    base_python = get_base_python()
+    if base_python:
+        os.execv(str(base_python), [str(base_python)] + sys.argv)
+
+
+# If running inside a venv, re-exec with system Python to avoid polluting
+# the project's venv and ensure pygame is installed system-wide
+reexec_with_base_python()
+
+# Auto-install pygame if missing (now guaranteed to be system Python)
 try:
     import pygame
 except ImportError:
     import subprocess
     subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", "pygame", "-q"],
+        [sys.executable, "-m", "pip", "install", "pygame", "-q", "--user"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
     )
@@ -30,7 +59,7 @@ except ImportError:
     except ImportError:
         import subprocess
         subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "tomli", "-q"],
+            [sys.executable, "-m", "pip", "install", "tomli", "-q", "--user"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
