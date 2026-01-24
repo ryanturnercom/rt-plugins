@@ -1,0 +1,19 @@
+# rt-agents configuration
+# Copy to .claude/rt-agents.toml in your project
+
+[blueprint]
+# Preferred tech stack (used in generated task prompts)
+language = "typescript"
+framework = "nextjs"
+testing = "vitest"
+database = "postgres"
+
+[blueprint.context]
+# Architectural context included in all tasks
+architecture = "We use repository pattern for data access."
+conventions = "All models must extend BaseEntity."
+
+[blueprint.variables]
+# Custom variables available as {{variable_name}} in prompts
+company = "Acme Corp"
+style_guide = "airbnb"
