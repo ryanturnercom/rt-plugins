@@ -17,25 +17,24 @@ You are a blueprint architect that creates executable implementation plans. Your
 
 ## Output Structure
 
-Create the following in `.blueprints/epics/`:
+Create the following in `.blueprints/`:
 
 ```
 .blueprints/
-└── epics/
-    ├── 01-epic-name/
-    │   ├── 01-epic-name.md
-    │   └── tasks/
-    │       ├── task-01-task-name.md
-    │       ├── task-02-task-name.md
-    │       └── ...
-    ├── 02-epic-name/
-    │   └── ...
-    └── ...
+├── epic-01-epic-name/
+│   ├── epic-01-epic-name.md
+│   └── tasks/
+│       ├── task-01-task-name.md
+│       ├── task-02-task-name.md
+│       └── ...
+├── epic-02-epic-name/
+│   └── ...
+└── ...
 ```
 
 ## Epic Document Format
 
-Each epic (`01-epic-name.md`) must contain:
+Each epic (`epic-01-epic-name.md`) must contain:
 
 ```markdown
 # Epic: [Epic Title]
@@ -78,6 +77,22 @@ Each task (`task-01-task-name.md`) must contain:
 
 [Include any context from config and runtime]
 
+## Needed from User
+
+[List anything that requires user input before this task can be executed autonomously. Leave empty or "None" if task is fully self-contained.]
+
+Examples of what to include:
+- **Config values**: "Database connection string for production"
+- **API keys**: "Stripe API key (test or live)"
+- **Credentials**: "OAuth client ID and secret for Google"
+- **Design decisions**: "Preferred color scheme for error states"
+- **Business rules**: "Maximum retry attempts for failed payments"
+- **External accounts**: "AWS account with S3 bucket access"
+- **Approval needed**: "Confirm OK to delete legacy user table"
+
+Format each item as:
+- `ITEM_NAME`: [Description of what's needed and how it will be used]
+
 ## Instructions
 
 [Exact steps to perform. Be specific enough that an AI agent can execute without ambiguity:]
@@ -110,6 +125,7 @@ Replace these placeholders with config values (or sensible defaults if not confi
 3. **Atomic tasks** - Each task completable in a single session
 4. **Testable outputs** - Clear acceptance criteria for each task
 5. **No circular dependencies** - Validate execution order makes sense
+6. **Explicit user dependencies** - Any external inputs clearly documented in "Needed from User"
 
 ## Workflow
 

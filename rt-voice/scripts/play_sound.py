@@ -7,6 +7,7 @@ Usage: python play_sound.py <event_name>
 import sys
 import os
 import random
+import subprocess
 from pathlib import Path
 
 
@@ -28,10 +29,20 @@ def get_base_python():
 
 
 def reexec_with_base_python():
-    """Re-execute this script using the base/system Python if in a venv."""
+    """Re-execute this script using the base/system Python if in a venv.
+
+    Uses subprocess instead of os.execv for better Windows/MINGW64 compatibility.
+    """
     base_python = get_base_python()
     if base_python:
-        os.execv(str(base_python), [str(base_python)] + sys.argv)
+        try:
+            result = subprocess.run(
+                [str(base_python)] + sys.argv,
+                capture_output=True
+            )
+            sys.exit(result.returncode)
+        except Exception:
+            pass  # Fall through to try with current Python
 
 
 # If running inside a venv, re-exec with system Python to avoid polluting
@@ -39,16 +50,20 @@ def reexec_with_base_python():
 reexec_with_base_python()
 
 # Auto-install pygame if missing (now guaranteed to be system Python)
+# Wrapped in try/except to fail silently if install fails (e.g., in restricted venv)
 try:
     import pygame
 except ImportError:
-    import subprocess
-    subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", "pygame", "-q", "--user"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
-    import pygame
+    try:
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "pygame", "-q", "--user"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        import pygame
+    except Exception:
+        # Can't install or import pygame - exit silently
+        sys.exit(0)
 
 # Python 3.11+ has tomllib built-in, fallback to tomli for older versions
 try:
@@ -57,13 +72,16 @@ except ImportError:
     try:
         import tomli as tomllib
     except ImportError:
-        import subprocess
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "tomli", "-q", "--user"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        import tomli as tomllib
+        try:
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", "tomli", "-q", "--user"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            import tomli as tomllib
+        except Exception:
+            # Can't install or import tomli - exit silently
+            sys.exit(0)
 
 SUPPORTED_FORMATS = (".mp3", ".wav", ".ogg")
 
