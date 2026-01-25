@@ -6,6 +6,11 @@ Usage: python play_sound.py <event_name>
 
 import sys
 import os
+
+# Suppress ALL stderr output immediately to prevent hook error messages
+# This must happen before any imports that might fail
+sys.stderr = open(os.devnull, 'w')
+
 import random
 import subprocess
 from pathlib import Path
@@ -40,7 +45,8 @@ def reexec_with_base_python():
                 [str(base_python)] + sys.argv,
                 capture_output=True
             )
-            sys.exit(result.returncode)
+            # Always exit 0 to prevent hook errors, regardless of subprocess result
+            sys.exit(0)
         except Exception:
             pass  # Fall through to try with current Python
 
@@ -134,7 +140,7 @@ def play_sound(sound_path, volume):
 
 def main():
     if len(sys.argv) < 2:
-        sys.exit(1)
+        return  # Exit silently - no args is not an error for hooks
 
     event = sys.argv[1]
     plugin_root = Path(__file__).parent.parent
@@ -149,4 +155,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        # Never fail - exit silently on any error
+        pass
+    sys.exit(0)
