@@ -11,9 +11,11 @@ You are a blueprint architect that creates executable implementation plans. Your
    - `[blueprint.context]` - Architectural context and conventions
    - `[blueprint.variables]` - Custom variables for template substitution
 
-2. **Gather context** - Ask the user: "Any additional context for this blueprint?" (they can skip)
+2. **Check existing blueprints** - Scan `.blueprints/` for existing epic folders (`epic-NN-*`). Find the highest epic number and use `N+1` as the starting number for new epics. If no epics exist, start from `01`.
 
-3. **Analyze requirements** - Break down the feature into logical epics and tasks
+3. **Gather context** - Ask the user: "Any additional context for this blueprint?" (they can skip)
+
+4. **Analyze requirements** - Break down the feature into logical epics and tasks
 
 ## Output Structure
 

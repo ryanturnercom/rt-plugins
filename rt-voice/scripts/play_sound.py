@@ -2,92 +2,31 @@
 """
 rt-voice: Play sounds for Claude Code hook events.
 Usage: python play_sound.py <event_name>
+
+No third-party dependencies required. Uses native OS audio playback:
+  - Windows: winmm.dll (mciSendString) via ctypes
+  - macOS: afplay
+  - Linux: mpg123 or ffplay
 """
 
 import sys
 import os
 
-# Suppress ALL stderr output immediately to prevent hook error messages
-# This must happen before any imports that might fail
-sys.stderr = open(os.devnull, 'w')
+# Suppress stderr to prevent hook error messages
+sys.stderr = open(os.devnull, "w")
 
 import random
 import subprocess
 from pathlib import Path
 
-
-def get_base_python():
-    """Get the base/system Python executable, outside any venv."""
-    if sys.prefix == sys.base_prefix:
-        # Not in a venv
-        return None
-
-    # We're in a venv - find the base Python
-    if sys.platform == "win32":
-        base_python = Path(sys.base_exec_prefix) / "python.exe"
-    else:
-        base_python = Path(sys.base_exec_prefix) / "bin" / "python3"
-        if not base_python.exists():
-            base_python = Path(sys.base_exec_prefix) / "bin" / "python"
-
-    return base_python if base_python.exists() else None
-
-
-def reexec_with_base_python():
-    """Re-execute this script using the base/system Python if in a venv.
-
-    Uses subprocess instead of os.execv for better Windows/MINGW64 compatibility.
-    """
-    base_python = get_base_python()
-    if base_python:
-        try:
-            result = subprocess.run(
-                [str(base_python)] + sys.argv,
-                capture_output=True
-            )
-            # Always exit 0 to prevent hook errors, regardless of subprocess result
-            sys.exit(0)
-        except Exception:
-            pass  # Fall through to try with current Python
-
-
-# If running inside a venv, re-exec with system Python to avoid polluting
-# the project's venv and ensure pygame is installed system-wide
-reexec_with_base_python()
-
-# Auto-install pygame if missing (now guaranteed to be system Python)
-# Wrapped in try/except to fail silently if install fails (e.g., in restricted venv)
-try:
-    import pygame
-except ImportError:
-    try:
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "pygame", "-q", "--user"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        import pygame
-    except Exception:
-        # Can't install or import pygame - exit silently
-        sys.exit(0)
-
-# Python 3.11+ has tomllib built-in, fallback to tomli for older versions
+# Python 3.11+ has tomllib built-in
 try:
     import tomllib
 except ImportError:
     try:
         import tomli as tomllib
     except ImportError:
-        try:
-            subprocess.check_call(
-                [sys.executable, "-m", "pip", "install", "tomli", "-q", "--user"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            import tomli as tomllib
-        except Exception:
-            # Can't install or import tomli - exit silently
-            sys.exit(0)
+        tomllib = None
 
 SUPPORTED_FORMATS = (".mp3", ".wav", ".ogg")
 
@@ -97,7 +36,7 @@ def get_config():
     config_path = Path.cwd() / ".claude" / "rt-voice.toml"
     defaults = {"enabled": True, "theme": "default", "volume": 0.8}
 
-    if config_path.exists():
+    if config_path.exists() and tomllib:
         with open(config_path, "rb") as f:
             user_config = tomllib.load(f)
         return {**defaults, **user_config}
@@ -123,24 +62,50 @@ def find_sound(plugin_root, theme, event):
         if sound_file.exists():
             return sound_file
 
-    return None  # Silent fallback
+    return None
 
 
-def play_sound(sound_path, volume):
-    """Play sound file with pygame."""
-    pygame.mixer.init()
-    pygame.mixer.music.load(str(sound_path))
-    pygame.mixer.music.set_volume(volume)
-    pygame.mixer.music.play()
-    # Wait for playback to finish
-    while pygame.mixer.music.get_busy():
-        pygame.time.wait(10)
-    pygame.mixer.quit()
+def play_sound(path, volume=0.8):
+    """Play sound using native OS audio. No third-party dependencies needed."""
+    path_str = str(path)
+
+    if sys.platform in ("win32", "msys"):
+        import ctypes
+        winmm = ctypes.windll.winmm
+        # Get 8.3 short path to avoid issues with special chars in filenames
+        buf = ctypes.create_unicode_buffer(260)
+        ctypes.windll.kernel32.GetShortPathNameW(path_str, buf, 260)
+        safe_path = buf.value or path_str
+        vol = int(volume * 1000)
+        winmm.mciSendStringW(f'open "{safe_path}" type mpegvideo alias rtv', None, 0, None)
+        winmm.mciSendStringW(f"setaudio rtv volume to {vol}", None, 0, None)
+        winmm.mciSendStringW("play rtv wait", None, 0, None)
+        winmm.mciSendStringW("close rtv", None, 0, None)
+
+    elif sys.platform == "darwin":
+        subprocess.run(
+            ["afplay", "-v", str(volume), path_str],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+        )
+
+    else:
+        # Linux: try common CLI players
+        for cmd in (
+            ["mpg123", "-q", path_str],
+            ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet",
+             "-volume", str(int(volume * 100)), path_str],
+            ["aplay", path_str],
+        ):
+            try:
+                subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                return
+            except Exception:
+                continue
 
 
 def main():
     if len(sys.argv) < 2:
-        return  # Exit silently - no args is not an error for hooks
+        return
 
     event = sys.argv[1]
     plugin_root = Path(__file__).parent.parent
@@ -158,6 +123,5 @@ if __name__ == "__main__":
     try:
         main()
     except Exception:
-        # Never fail - exit silently on any error
         pass
     sys.exit(0)
