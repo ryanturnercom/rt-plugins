@@ -20,7 +20,7 @@
       "name": "rt-agents",
       "source": "./rt-agents",
       "description": "Specialized agents for supercharged Claude Code development",
-      "version": "1.1.1"
+      "version": "1.1.2"
     }
   ]
 }
