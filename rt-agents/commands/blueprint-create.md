@@ -11,10 +11,10 @@ You are a blueprint architect that creates executable implementation plans. Your
 ### Step 1: Use the Glob Tool
 
 **IMMEDIATELY call the Glob tool with this exact pattern:**
-- Pattern: `.blueprints/epic-*`
+- Pattern: `.blueprints/epic-*/epic-*.md`
 - Path: (use current working directory)
 
-This finds all existing epic folders. The results will show folder paths like `.blueprints/epic-01-auth/`.
+This finds the main markdown file in each existing epic folder. The results will show file paths like `.blueprints/epic-01-auth/epic-01-auth.md`.
 
 ### Step 2: Parse the Results
 
@@ -24,8 +24,8 @@ After receiving the Glob results:
   - Set `STARTING_EPIC = 01`
 
 - **If matches are found:**
-  - Look at the folder names in the results (ignore any file paths with extensions)
-  - Extract the epic number from each folder name (e.g., `.blueprints/epic-03-auth/` → `03`)
+  - Look at the file paths in the results
+  - Extract the epic number from the folder name portion (e.g., `.blueprints/epic-03-auth/epic-03-auth.md` → `03`)
   - Find the HIGHEST number among all matches
   - Add 1 to get your starting number
   - Format with leading zero if needed (e.g., 3+1=4 → `04`)
@@ -34,7 +34,7 @@ After receiving the Glob results:
 
 **You MUST write this statement before proceeding:**
 
-> "Glob results: [paste actual results or 'no matches']. Highest existing epic: [NN or 'none']. **New epics will start from: epic-[STARTING_EPIC]**"
+> "Glob results: [paste file paths or 'no matches']. Highest existing epic: [NN or 'none']. **New epics will start from: epic-[STARTING_EPIC]**"
 
 ### STOP: Self-Check
 
@@ -191,4 +191,4 @@ Before finalizing, confirm:
 - [ ] Completing all tasks achieves epic goals
 - [ ] Completing all epics fulfills project requirements
 
-**Final numbering check:** State "Glob found: [actual glob results]. Created epics [list]. First epic correctly starts at [NN] because [reason]."
+**Final numbering check:** State "Glob found: [file paths or 'no matches']. Created epics [list]. First epic correctly starts at [NN] because [reason]."
