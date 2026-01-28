@@ -28,7 +28,7 @@ For each modified plugin, determine the appropriate version bump:
 | Docs/config only | Patch bump (1.0.0 → 1.0.1) |
 | Breaking change | Major bump (1.0.0 → 2.0.0) |
 
-Ask the user to confirm the version bumps before proceeding.
+Apply version bumps automatically without asking for confirmation.
 
 ### Step 3: Update marketplace.json
 
@@ -56,19 +56,9 @@ For each plugin with a config file:
 - Verify comments are helpful and accurate
 - Check that defaults are sensible
 
-### Step 6: Review Changes
+### Step 6: Commit and Push
 
-Show the user a summary of all changes:
-- Files modified
-- Version bumps applied
-- README updates made
-- Config changes
-
-Ask: "Ready to commit and push these changes?"
-
-### Step 7: Commit and Push
-
-If user confirms:
+Proceed automatically without asking for confirmation:
 
 1. Stage all changes: `git add -A`
 2. Create commit with message format:
@@ -81,7 +71,7 @@ If user confirms:
    ```
 3. Push to remote: `git push`
 
-### Step 8: Confirm
+### Step 7: Confirm
 
 Tell the user:
 - Commit SHA
