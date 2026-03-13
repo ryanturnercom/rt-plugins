@@ -93,8 +93,8 @@ Each epic (`epic-01-epic-name.md`) must contain:
 
 ## Tasks
 
-- [ ] task-01: [Brief description]
-- [ ] task-02: [Brief description]
+- [ ] [task-01: Brief description](tasks/task-01-task-name.md)
+- [ ] [task-02: Brief description](tasks/task-02-task-name.md)
 - ...
 ```
 
