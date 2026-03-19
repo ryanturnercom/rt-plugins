@@ -17,3 +17,14 @@ conventions = "All models must extend BaseEntity."
 # Custom variables available as {{variable_name}} in prompts
 company = "Acme Corp"
 style_guide = "airbnb"
+
+[documentation]
+# Output directories (relative to project root)
+output_dir = ".rt-documentation"
+export_dir = ".rt-documentation/exports"
+
+# Default content mode for sections: verbatim | summarize
+default_mode = "verbatim"
+
+# Default print inclusion for sections
+default_print = true

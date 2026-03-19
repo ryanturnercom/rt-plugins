@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{project_name} &mdash; Internal Documentation</title>
+    <style>
+        /* ================================================================
+           rt-agents documentation theme
+           Single-file, inline CSS — no external stylesheets
+           ================================================================ */
+
+        /* --- Reset & base --- */
+        *, *::before, *::after {{
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }}
+
+        html {{
+            scroll-behavior: smooth;
+        }}
+
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                         Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans",
+                         "Helvetica Neue", sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #222;
+            background: #fafafa;
+        }}
+
+        /* --- Layout (CSS Grid) --- */
+        .layout {{
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: 100vh;
+        }}
+
+        /* --- Sidebar --- */
+        .sidebar {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100vh;
+            overflow-y: auto;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            padding: 24px 0 16px 0;
+            z-index: 100;
+        }}
+
+        .sidebar-title {{
+            font-size: 1.1rem;
+            font-weight: 700;
+            padding: 0 16px 16px 16px;
+            color: #fff;
+            border-bottom: 1px solid #2a2a4e;
+            margin-bottom: 12px;
+        }}
+
+        .sidebar-search {{
+            padding: 0 12px 12px 12px;
+        }}
+
+        .sidebar-search input {{
+            width: 100%;
+            padding: 8px 12px;
+            background: #2a2a4e;
+            border: 1px solid #3a3a5e;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 0.85rem;
+            outline: none;
+        }}
+
+        .sidebar-search input::placeholder {{
+            color: #888;
+        }}
+
+        .sidebar-search input:focus {{
+            border-color: #6c63ff;
+        }}
+
+        .sidebar-nav {{
+            list-style: none;
+        }}
+
+        .sidebar-nav li {{
+            margin: 0;
+        }}
+
+        .sidebar-nav a {{
+            display: block;
+            padding: 8px 16px;
+            color: #e0e0e0;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background 0.15s ease, border-left 0.15s ease;
+            border-left: 3px solid transparent;
+        }}
+
+        .sidebar-nav a:hover {{
+            background: #2a2a4e;
+        }}
+
+        .sidebar-nav a.active {{
+            border-left-color: #6c63ff;
+            background: #2a2a4e;
+            color: #fff;
+        }}
+
+        .sidebar-nav .nav-subsections .nav-sublink {{
+            padding-left: 32px;
+            font-size: 0.82rem;
+            color: #b0b0b0;
+        }}
+
+        .sidebar-nav .nav-subsections .nav-sublink:hover {{
+            color: #e0e0e0;
+        }}
+
+        .sidebar-nav .appendix-separator {{
+            border-top: 1px solid #2a2a4e;
+            margin: 12px 16px;
+        }}
+
+        /* --- Content area --- */
+        .content {{
+            grid-column: 2;
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 40px 32px 60px 32px;
+            background: #fff;
+            min-height: 100vh;
+        }}
+
+        /* --- Typography --- */
+        .content h1 {{
+            font-size: 2rem;
+            font-weight: 700;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            color: #111;
+        }}
+
+        .content h2 {{
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 2rem;
+            margin-bottom: 0.75rem;
+            color: #222;
+        }}
+
+        .content h3 {{
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }}
+
+        .content h4 {{
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 1.25rem;
+            margin-bottom: 0.5rem;
+            color: #444;
+        }}
+
+        .content p {{
+            margin-bottom: 1rem;
+        }}
+
+        .content ul, .content ol {{
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+        }}
+
+        .content li {{
+            margin-bottom: 0.35rem;
+        }}
+
+        .content a {{
+            color: #4a6cf7;
+            text-decoration: none;
+        }}
+
+        .content a:hover {{
+            text-decoration: underline;
+        }}
+
+        /* --- Inline code --- */
+        .content code {{
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo,
+                         Courier, monospace;
+            font-size: 0.88em;
+            color: #c7254e;
+        }}
+
+        /* --- Code blocks --- */
+        .content pre {{
+            margin-bottom: 1rem;
+        }}
+
+        .content pre > code {{
+            display: block;
+            background: #f5f5f5;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid #e0e0e0;
+            color: #333;
+            line-height: 1.5;
+            font-size: 0.85rem;
+        }}
+
+        /* --- Tables --- */
+        .content table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1rem;
+        }}
+
+        .content th {{
+            background: #f5f5f5;
+            font-weight: 600;
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 2px solid #ddd;
+        }}
+
+        .content td {{
+            padding: 10px 12px;
+            border-bottom: 1px solid #e8e8e8;
+        }}
+
+        .content tr:hover {{
+            background: #fafafa;
+        }}
+
+        /* --- Diagram placeholders --- */
+        .diagram-placeholder {{
+            background: #fff3cd;
+            border: 1px dashed #ffc107;
+            padding: 12px 16px;
+            border-radius: 4px;
+            font-style: italic;
+            margin-bottom: 1rem;
+            color: #856404;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+
+        .diagram-placeholder .diagram-icon {{
+            font-size: 1.3rem;
+        }}
+
+        /* --- Section wrapper --- */
+        .section {{
+            margin-bottom: 2.5rem;
+        }}
+
+        .section hr {{
+            border: none;
+            border-top: 1px solid #e8e8e8;
+            margin: 1.5rem 0;
+        }}
+
+        /* --- Collapsible content --- */
+        .collapsible-header {{
+            cursor: pointer;
+            user-select: none;
+        }}
+
+        .collapsible-content {{
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }}
+
+        /* --- Footer --- */
+        .footer {{
+            background: #f5f5f5;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+            padding: 16px 24px;
+            font-size: 0.82rem;
+            color: #666;
+            grid-column: 2;
+        }}
+
+        .footer a {{
+            color: #4a6cf7;
+            text-decoration: none;
+        }}
+
+        .footer a:hover {{
+            text-decoration: underline;
+        }}
+
+        /* --- Print button --- */
+        .print-button {{
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #4a6cf7;
+            color: #fff;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            transition: background 0.2s ease, box-shadow 0.2s ease;
+        }}
+
+        .print-button:hover {{
+            background: #3a5ce5;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+        }}
+
+        .print-button:active {{
+            transform: scale(0.95);
+        }}
+
+        /* --- Export UI --- */
+        .export-ui {{
+            margin-top: 8px;
+        }}
+
+        /* --- Scrollbar styling (Webkit) --- */
+        .sidebar::-webkit-scrollbar {{
+            width: 6px;
+        }}
+
+        .sidebar::-webkit-scrollbar-track {{
+            background: #1a1a2e;
+        }}
+
+        .sidebar::-webkit-scrollbar-thumb {{
+            background: #3a3a5e;
+            border-radius: 3px;
+        }}
+
+        /* ================================================================
+           OpenAPI endpoint styles
+           ================================================================ */
+
+        .api-header {{
+            margin-bottom: 1.5rem;
+        }}
+
+        .api-version {{
+            font-size: 0.75rem;
+            font-weight: 400;
+            color: #888;
+            vertical-align: middle;
+        }}
+
+        .endpoint {{
+            margin-bottom: 8px;
+        }}
+
+        .endpoint-toggle {{
+            width: 100%;
+            text-align: left;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            background: #fafafa;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }}
+
+        .endpoint-toggle:hover {{
+            background: #f0f0f0;
+        }}
+
+        .method-badge {{
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }}
+
+        .method-get {{ background: #10b981; color: #fff; }}
+        .method-post {{ background: #3b82f6; color: #fff; }}
+        .method-put {{ background: #f59e0b; color: #fff; }}
+        .method-patch {{ background: #eab308; color: #1a1a1a; }}
+        .method-delete {{ background: #ef4444; color: #fff; }}
+        .method-head {{ background: #6b7280; color: #fff; }}
+        .method-options {{ background: #8b5cf6; color: #fff; }}
+        .method-trace {{ background: #6b7280; color: #fff; }}
+
+        .endpoint-path {{
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo,
+                         Courier, monospace;
+            font-weight: 600;
+            color: #333;
+        }}
+
+        .endpoint-summary {{
+            color: #666;
+            flex: 1;
+        }}
+
+        .toggle-icon {{
+            margin-left: auto;
+            font-size: 0.7rem;
+            color: #999;
+            transition: transform 0.2s ease;
+        }}
+
+        .endpoint.expanded .toggle-icon {{
+            transform: rotate(180deg);
+        }}
+
+        .endpoint-details {{
+            display: none;
+            padding: 16px;
+            border: 1px solid #e0e0e0;
+            border-top: none;
+        }}
+
+        .endpoint.expanded .endpoint-details {{
+            display: block;
+        }}
+
+        .endpoint-description {{
+            margin-bottom: 1rem;
+            color: #555;
+        }}
+
+        .endpoint-params table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1rem;
+            font-size: 0.88rem;
+        }}
+
+        .endpoint-params th {{
+            background: #f5f5f5;
+            font-weight: 600;
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 2px solid #ddd;
+        }}
+
+        .endpoint-params td {{
+            padding: 8px 10px;
+            border-bottom: 1px solid #e8e8e8;
+        }}
+
+        .endpoint-request,
+        .endpoint-responses {{
+            margin-top: 1rem;
+        }}
+
+        .endpoint-request h4,
+        .endpoint-responses h4,
+        .endpoint-params h4 {{
+            margin-bottom: 0.5rem;
+        }}
+
+        .response-code {{
+            margin-bottom: 0.75rem;
+        }}
+
+        .status-code {{
+            font-weight: 700;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo,
+                         Courier, monospace;
+        }}
+
+        /* ================================================================
+           Blueprint appendix styles
+           ================================================================ */
+
+        .blueprint-epic {{
+            margin-bottom: 2rem;
+        }}
+
+        .epic-status {{
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 3px;
+            background: #e8e8e8;
+            vertical-align: middle;
+        }}
+
+        .status-gray {{ background: #e0e0e0; color: #555; }}
+        .status-green {{ background: #d4edda; color: #155724; }}
+        .status-red {{ background: #f8d7da; color: #721c24; }}
+        .status-blue {{ background: #cce5ff; color: #004085; }}
+
+        .task-table {{
+            width: 100%;
+        }}
+
+        .task-details {{
+            margin: 8px 0;
+            padding: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+        }}
+
+        .task-details summary {{
+            cursor: pointer;
+            font-weight: 600;
+        }}
+
+        .task-details[open] {{
+            background: #fafafa;
+        }}
+
+        .task-content {{
+            padding: 8px 0 0 0;
+        }}
+
+        /* ================================================================
+           Print styles
+           ================================================================ */
+        @media print {{
+            .sidebar {{
+                display: none !important;
+            }}
+
+            .layout {{
+                display: block;
+            }}
+
+            .content {{
+                max-width: 100%;
+                margin: 0;
+                padding: 0;
+                background: #fff;
+            }}
+
+            .footer {{
+                display: none !important;
+            }}
+
+            .print-button {{
+                display: none !important;
+            }}
+
+            .export-ui {{
+                display: none !important;
+            }}
+
+            .collapsible-content {{
+                display: block !important;
+                max-height: none !important;
+            }}
+
+            .endpoint-details {{
+                display: block !important;
+            }}
+
+            .endpoint-toggle {{
+                border-bottom: none;
+            }}
+
+            .toggle-icon {{
+                display: none !important;
+            }}
+
+            .task-details {{
+                display: block;
+            }}
+
+            .task-details[open] {{
+                background: none;
+            }}
+
+            .section[data-print="false"] {{
+                display: none !important;
+            }}
+
+            h1, h2, h3 {{
+                page-break-after: avoid;
+            }}
+
+            pre, table {{
+                page-break-inside: avoid;
+            }}
+
+            body {{
+                font-size: 11pt;
+                color: #000;
+                background: #fff;
+            }}
+
+            .content a {{
+                color: #000;
+                text-decoration: underline;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2 class="sidebar-title">{project_name}</h2>
+                <div class="sidebar-search">
+                    <input type="text" placeholder="Search sections..." />
+                </div>
+            </div>
+            <div class="sidebar-nav">
+                {sidebar_html}
+            </div>
+        </nav>
+        <main class="content">
+            {sections_html}
+        </main>
+    </div>
+    <footer class="footer">
+        {footer_html}
+    </footer>
+    <button class="print-button" onclick="window.print()" title="Print documentation">
+        &#128438;
+    </button>
+    <script>
+        /* Sidebar search filtering */
+        (function() {{
+            var searchInput = document.querySelector('.sidebar-search input');
+            if (!searchInput) return;
+            searchInput.addEventListener('input', function() {{
+                var query = this.value.toLowerCase();
+                document.querySelectorAll('.nav-section').forEach(function(section) {{
+                    var link = section.querySelector('.nav-link');
+                    var title = link ? link.textContent.toLowerCase() : '';
+                    var subsections = section.querySelectorAll('.nav-sublink');
+                    var matchesAny = title.indexOf(query) !== -1;
+                    subsections.forEach(function(sub) {{
+                        var subMatch = sub.textContent.toLowerCase().indexOf(query) !== -1;
+                        sub.style.display = (subMatch || title.indexOf(query) !== -1) ? '' : 'none';
+                        if (subMatch) matchesAny = true;
+                    }});
+                    section.style.display = matchesAny ? '' : 'none';
+                }});
+            }});
+        }})();
+
+        /* Scroll-based active section tracking */
+        (function() {{
+            var observer = new IntersectionObserver(function(entries) {{
+                entries.forEach(function(entry) {{
+                    if (entry.isIntersecting) {{
+                        document.querySelectorAll('.nav-link, .nav-sublink').forEach(function(l) {{
+                            l.classList.remove('active');
+                        }});
+                        var id = entry.target.id;
+                        var navLink = document.querySelector('[href="#' + id + '"]');
+                        if (navLink) navLink.classList.add('active');
+                    }}
+                }});
+            }}, {{ rootMargin: '-20% 0px -80% 0px' }});
+
+            document.querySelectorAll('.section-heading').forEach(function(h) {{
+                observer.observe(h);
+            }});
+            document.querySelectorAll('[id^="subsection-"]').forEach(function(h) {{
+                observer.observe(h);
+            }});
+        }})();
+
+        /* Export UI: toggle panel visibility */
+        (function() {{
+            var toggle = document.querySelector('.export-toggle');
+            if (!toggle) return;
+            toggle.addEventListener('click', function() {{
+                var panel = document.querySelector('.export-panel');
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            }});
+        }})();
+
+        /* Export UI: print with section selection */
+        (function() {{
+            var printBtn = document.querySelector('.export-print');
+            if (!printBtn) return;
+            printBtn.addEventListener('click', function() {{
+                document.querySelectorAll('.export-panel input[type="checkbox"]').forEach(function(cb) {{
+                    var section = document.getElementById(cb.dataset.section);
+                    if (section) section.setAttribute('data-print', cb.checked ? 'true' : 'false');
+                }});
+                window.print();
+            }});
+        }})();
+
+        /* Export UI: save PDF — show CLI command */
+        (function() {{
+            var saveBtn = document.querySelector('.export-save-pdf');
+            if (!saveBtn) return;
+            saveBtn.addEventListener('click', function() {{
+                var selected = [];
+                document.querySelectorAll('.export-panel input[type="checkbox"]:checked').forEach(function(cb) {{
+                    var label = cb.parentElement ? cb.parentElement.textContent.trim() : cb.dataset.section;
+                    selected.push(label);
+                }});
+                alert('To generate PDF, run:\\npython generate_pdf.py --sections "' + selected.join(',') + '"');
+            }});
+        }})();
+    </script>
+</body>
+</html>

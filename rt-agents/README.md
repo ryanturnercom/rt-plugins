@@ -78,6 +78,49 @@ Executes a blueprint with parallel subagents, real-time progress tracking, and i
 - `skip [task-id]` - Skip a task
 - `retry [task-id]` - Retry a failed task
 
+---
+
+### `/rt-agents:documentation-config`
+
+Scans the codebase for documentation sources (READMEs, OpenAPI specs, blueprints, etc.) and generates a structured TOML config at `.claude/rt-documentation.toml`. Supports merge mode on re-runs to preserve user edits.
+
+**Usage:**
+```
+/rt-agents:documentation-config
+```
+
+**Output:**
+```
+.claude/rt-documentation.toml
+```
+
+---
+
+### `/rt-agents:documentation-create`
+
+Reads the documentation config and generates a single-page HTML documentation site at `.rt-documentation/index.html` with PDF export capability.
+
+**Usage:**
+```
+/rt-agents:documentation-create
+```
+
+**Output:**
+```
+.rt-documentation/
+└── index.html
+```
+
+## Documentation
+
+Generate project documentation in three steps:
+
+1. **Scan** — Run `/rt-agents:documentation-config` to scan the codebase and generate a config at `.claude/rt-documentation.toml`
+2. **Edit** — Review the config to adjust sections, ordering, verbatim/summarize mode, and print flags
+3. **Render** — Run `/rt-agents:documentation-create` to produce HTML and export PDF
+
+Output lives in `.rt-documentation/`.
+
 ## Configuration
 
 Create `.claude/rt-agents.toml` in your project:
