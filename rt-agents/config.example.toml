@@ -19,9 +19,8 @@ company = "Acme Corp"
 style_guide = "airbnb"
 
 [documentation]
-# Output directories (relative to project root)
+# Output directory (relative to project root)
 output_dir = ".rt-documentation"
-export_dir = ".rt-documentation/exports"
 
 # Default content mode for sections: verbatim | summarize
 default_mode = "verbatim"
