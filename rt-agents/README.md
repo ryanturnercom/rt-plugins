@@ -108,8 +108,15 @@ Reads the documentation config and generates a single-page HTML documentation si
 **Output:**
 ```
 .rt-documentation/
-└── index.html
+├── index.html                           # Always-current version
+└── {project}_{YYYY-MM-DD_HH-MM-SS}.html  # Timestamped snapshot
 ```
+
+**Print UI:**
+- Click the print button to enter print mode
+- Use **Select All** / **Select None** to quickly toggle sections
+- Check/uncheck individual sections, then click **Print**
+- Sections marked `print = false` in config are unchecked by default but can be re-enabled
 
 ## Documentation
 

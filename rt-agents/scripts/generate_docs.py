@@ -969,12 +969,13 @@ def generate_sections_html(sections: list) -> str:
     return "\n".join(parts)
 
 
-def generate_footer_html(project_name: str, sections: list) -> str:
+def generate_footer_html(project_name: str, sections: list, project_config: dict = None) -> str:
     """Generate the footer HTML with generation date.
 
     Args:
         project_name: The project name from config.
         sections: List of section dicts (unused, kept for API compatibility).
+        project_config: The project dict from parse_config(), used for repo_url.
 
     Returns:
         HTML string for the footer.
@@ -983,8 +984,15 @@ def generate_footer_html(project_name: str, sections: list) -> str:
 
     today = date.today().isoformat()
 
+    project_config = project_config or {}
+    repo_url = project_config.get("repo_url", "")
+    if repo_url:
+        name_html = f'<a href="{_html.escape(repo_url)}">{_html.escape(project_name)}</a>'
+    else:
+        name_html = _html.escape(project_name)
+
     return (
-        f"        <p>Generated {today} &mdash; "
+        f"        <p>{name_html} &mdash; Generated {today} &mdash; "
         f"rt-agents documentation</p>"
     )
 
@@ -1008,7 +1016,7 @@ def assemble_and_write(sections: list, project_config: dict) -> None:
 
     sidebar_html = generate_sidebar_html(sections)
     sections_html = generate_sections_html(sections)
-    footer_html = generate_footer_html(project_name, sections)
+    footer_html = generate_footer_html(project_name, sections, project_config)
 
     final_html = template.format(
         project_name=project_name,

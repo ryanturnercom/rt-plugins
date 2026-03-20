@@ -8,6 +8,7 @@
 [project]
 name = "rt-plugins"                        # Project name (auto-detected)
 description = ""                           # Project description (auto-detected)
+repo_url = "https://github.com/ryanturnercom/rt-plugins"
 output_dir = ".rt-documentation"           # Where generated docs are written
 export_dir = ".rt-documentation/exports"   # Where final exports are placed
 
@@ -90,5 +91,5 @@ title = "Blueprints"
 sources = [".blueprints"]
 type = "blueprints"
 mode = "verbatim"
-print = false
+print = true
 order = 9900
