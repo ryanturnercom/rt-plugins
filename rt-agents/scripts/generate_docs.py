@@ -143,11 +143,25 @@ def load_sections(config: dict) -> list[dict]:
                 )
                 continue
 
-            # For blueprint sections, sources are directories — don't read them
-            # as files, just record the path for render_blueprints() to handle.
-            if section_type == "blueprints" and src_path.is_dir():
-                sources_content.append("")  # placeholder, not used
-                sources_paths.append(str(src_path))
+            # For blueprint sections, we need the .blueprints/ root directory.
+            # Sources may be listed as individual epic .md files or as dirs.
+            # Resolve to the top-level blueprints directory in either case.
+            if section_type == "blueprints":
+                if src_path.is_dir():
+                    bp_root = str(src_path)
+                else:
+                    # Source is a file like .blueprints/epic-01/epic-01.md
+                    # Walk up to find the .blueprints root directory
+                    bp_root = str(src_path.parent)
+                    while bp_root and not Path(bp_root).name.startswith(".blueprints"):
+                        parent = str(Path(bp_root).parent)
+                        if parent == bp_root:
+                            break
+                        bp_root = parent
+                # Only record each unique blueprints root once
+                if bp_root not in sources_paths:
+                    sources_content.append("")  # placeholder, not used
+                    sources_paths.append(bp_root)
                 continue
 
             # For summarize mode, try reading from cache first
@@ -861,9 +875,14 @@ def generate_sidebar_html(sections: list) -> str:
             parts.append('        <div class="appendix-separator"></div>')
             appendix_separator_added = True
 
+        print_flag = section.get("print_flag", True)
+        checked = "checked" if print_flag else ""
+
         parts.append(f'        <div class="nav-section" data-section-id="section-{slug}">')
         parts.append(
-            f'          <a href="#section-{slug}" class="nav-link">'
+            f'          <input type="checkbox" class="print-check" '
+            f'data-section="section-{slug}" {checked}>'
+            f'<a href="#section-{slug}" class="nav-link">'
             f"{_html.escape(title)}</a>"
         )
 
@@ -951,17 +970,11 @@ def generate_sections_html(sections: list) -> str:
 
 
 def generate_footer_html(project_name: str, sections: list) -> str:
-    """Generate the footer HTML including generation date and export UI.
-
-    The footer contains:
-    - Generation date in YYYY-MM-DD format
-    - Attribution line
-    - An export UI dropdown with checkboxes for each section (pre-checked
-      based on the section's print flag) and Save PDF / Print buttons
+    """Generate the footer HTML with generation date.
 
     Args:
         project_name: The project name from config.
-        sections: List of section dicts with ``title``, ``print_flag``.
+        sections: List of section dicts (unused, kept for API compatibility).
 
     Returns:
         HTML string for the footer.
@@ -970,38 +983,10 @@ def generate_footer_html(project_name: str, sections: list) -> str:
 
     today = date.today().isoformat()
 
-    # Build section checkboxes for the export UI
-    checkbox_lines: list[str] = []
-    for section in sections:
-        title = section.get("title", "Untitled")
-        slug = _slugify(title)
-        checked = "checked" if section.get("print_flag", True) else ""
-        checkbox_lines.append(
-            f'            <label>\n'
-            f'              <input type="checkbox" data-section="section-{slug}" '
-            f'{checked}> {_html.escape(title)}\n'
-            f"            </label>"
-        )
-
-    checkboxes_html = "\n".join(checkbox_lines)
-
-    footer = (
+    return (
         f"        <p>Generated {today} &mdash; "
-        f"rt-agents documentation</p>\n"
-        f'        <div class="export-ui">\n'
-        f'          <button class="export-toggle">Export PDF &#9660;</button>\n'
-        f'          <div class="export-panel" style="display:none;">\n'
-        f"            <h3>Select sections to export:</h3>\n"
-        f"{checkboxes_html}\n"
-        f'            <div class="export-actions">\n'
-        f'              <button class="export-save-pdf">Save PDF</button>\n'
-        f'              <button class="export-print">Print</button>\n'
-        f"            </div>\n"
-        f"          </div>\n"
-        f"        </div>"
+        f"rt-agents documentation</p>"
     )
-
-    return footer
 
 
 def assemble_and_write(sections: list, project_config: dict) -> None:
@@ -1033,10 +1018,19 @@ def assemble_and_write(sections: list, project_config: dict) -> None:
     )
 
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Write index.html (always-current version)
     output_path = output_dir / "index.html"
     output_path.write_text(final_html, encoding="utf-8")
-
     print(f"Documentation written to {output_path}")
+
+    # Write timestamped snapshot
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    slug_name = _slugify(project_name) or "docs"
+    snapshot_path = output_dir / f"{slug_name}_{timestamp}.html"
+    snapshot_path.write_text(final_html, encoding="utf-8")
+    print(f"Snapshot written to {snapshot_path}")
 
 
 def main():

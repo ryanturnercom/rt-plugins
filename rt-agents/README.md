@@ -98,7 +98,7 @@ Scans the codebase for documentation sources (READMEs, OpenAPI specs, blueprints
 
 ### `/rt-agents:documentation-create`
 
-Reads the documentation config and generates a single-page HTML documentation site at `.rt-documentation/index.html` with PDF export capability.
+Reads the documentation config and generates a single-page HTML documentation site at `.rt-documentation/index.html` with a timestamped snapshot.
 
 **Usage:**
 ```
@@ -117,7 +117,7 @@ Generate project documentation in three steps:
 
 1. **Scan** — Run `/rt-agents:documentation-config` to scan the codebase and generate a config at `.claude/rt-documentation.toml`
 2. **Edit** — Review the config to adjust sections, ordering, verbatim/summarize mode, and print flags
-3. **Render** — Run `/rt-agents:documentation-create` to produce HTML and export PDF
+3. **Render** — Run `/rt-agents:documentation-create` to produce timestamped HTML
 
 Output lives in `.rt-documentation/`.
 

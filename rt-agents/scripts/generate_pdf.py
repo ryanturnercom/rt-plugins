@@ -56,7 +56,7 @@ def load_config() -> dict:
     if not config_path.exists():
         print(
             "Error: .claude/rt-documentation.toml not found. "
-            "Run /documentation-config first."
+            "Run /rt-agents:documentation-config first."
         )
         sys.exit(1)
 
@@ -213,7 +213,7 @@ def main():
     if not html_path.exists():
         print(
             f"Error: {html_path} not found. "
-            "Run /documentation-create first."
+            "Run /rt-agents:documentation-create first."
         )
         sys.exit(1)
 
