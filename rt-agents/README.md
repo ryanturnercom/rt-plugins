@@ -22,7 +22,7 @@ Creates `.claude/rt-agents.toml` with example structure for you to fill in.
 
 ### `/rt-agents:spec-create`
 
-Interviews you one question at a time (multiple-choice, adaptive, with a brainstorming mode) to produce a source-of-truth spec markdown file that `blueprint-create` can consume directly.
+Interviews you to produce a source-of-truth spec markdown file that `blueprint-create` can consume directly. The kind of spec is picked upfront as a dropdown, then the interview adapts to that kind — so `chore` and `docs` stay quick (1–3 questions) while `feat`, `prd`, and `migration` get the depth they need.
 
 **Usage:**
 ```
@@ -30,18 +30,21 @@ Interviews you one question at a time (multiple-choice, adaptive, with a brainst
 ```
 
 **Features:**
-- **One question at a time** — multiple-choice options with an `other` and `not sure — help me think through this` option
+- **Kind-first** — dropdown selection of `feat`, `fix`, `chore`, `refactor`, `migration`, `integration`, `infra`, `docs`, or `prd`; drives the filename and the question track
+- **Right-sized interview** — per-kind question tracks (e.g. `fix` asks repro/root-cause/regression; `migration` asks backfill/rollback/downtime) so you only get questions that matter
+- **One question at a time** — multiple-choice options with `other` and `not sure — help me think through this` on every question
 - **Adaptive** — re-evaluates remaining questions after every answer; drops irrelevant ones, adds ones surfaced by your answers
 - **Brainstorming mode** — pick `?)` on any question to get tradeoff analysis and a recommendation
 - **Escape hatches** — type `skip`, `back`, `why`, `preview`, or `done` at any prompt
 - **Draft review** — shows a Design Decisions table for confirmation before writing the file
+- **Per-kind sections** — output only includes the sections relevant to the kind (e.g. `fix` gets Reproduction + Root Cause; `migration` gets Migration Plan; `prd` gets Success Metrics)
 
 **Output:**
 ```
 .specs/YYYY-MM-DD_<kind>_<slug>.md
 ```
 
-Structure mirrors the sample specs (Design Decisions table, Data Model, Scope, Implementation Order, etc.) and is specific enough to feed straight into `/rt-agents:blueprint-create @.specs/<file>.md`.
+Example: `.specs/2026-04-18_feat_item-state-tracking.md`. Feeds straight into `/rt-agents:blueprint-create @.specs/<file>.md`.
 
 ---
 

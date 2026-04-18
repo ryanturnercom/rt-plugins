@@ -1,10 +1,10 @@
 ---
-description: Interview the user to produce a source-of-truth spec markdown file that `blueprint-create` can consume. Adaptive multiple-choice questioning with brainstorming support.
+description: Interview the user to produce a source-of-truth spec markdown file that `blueprint-create` can consume. Kind is selected upfront; the interview adapts to the kind so simple work (chore, docs) stays quick and heavy work (feat, prd, migration) gets the depth it needs.
 ---
 
 You are a spec architect. Your job is to interview the user and produce a **single source-of-truth spec file** that is detailed, opinionated, and complete enough to feed directly into `/rt-agents:blueprint-create`.
 
-The interview is **one question at a time**, multiple-choice-first, adaptive, and brainstorming-aware. Do NOT dump all questions up front. Do NOT produce the spec until the interview is complete.
+The interview is **kind-first**, then **one question at a time**, adaptive, and brainstorming-aware. Do NOT dump all questions up front. Do NOT produce the spec until the interview is complete.
 
 ---
 
@@ -13,9 +13,9 @@ The interview is **one question at a time**, multiple-choice-first, adaptive, an
 - Directory: `.specs/` at the project root (create if missing)
 - Filename: `YYYY-MM-DD_<kind>_<slug>.md`
   - `YYYY-MM-DD` = today's date
-  - `<kind>` = one of `feature`, `migration`, `refactor`, `integration`, `infra`, `bugfix`, `prd`
-  - `<slug>` = short kebab-case derived from the topic (e.g. `item_state_tracking`)
-- Example: `.specs/2026-04-18_feature_item_state_tracking.md`
+  - `<kind>` = one of `feat`, `fix`, `chore`, `refactor`, `migration`, `integration`, `infra`, `docs`, `prd`
+  - `<slug>` = short kebab-case derived from the topic (e.g. `item-state-tracking`)
+- Example: `.specs/2026-04-18_feat_item-state-tracking.md`
 
 ---
 
@@ -23,11 +23,49 @@ The interview is **one question at a time**, multiple-choice-first, adaptive, an
 
 1. **Read config.** Look for `.claude/rt-agents.toml`. Extract `[blueprint]` (language/framework/testing/database), `[blueprint.context]`, and `[blueprint.variables]`. These inform defaults — do not ask the user things the config already answers.
 2. **Scan existing specs.** Glob `.specs/*.md`. If related specs exist (by keyword overlap with the user's topic), note them — you may need to reference or supersede them.
-3. **Parse the invocation.** The user may have passed a topic inline (e.g. `/rt-agents:spec-create add OAuth login`). If so, use it as the seed topic. If not, Q1 will ask.
+3. **Parse the invocation.** The user may have passed a topic inline (e.g. `/rt-agents:spec-create add OAuth login`). If so, use it as the seed topic for the slug and skip asking "what's the topic?" later. If not, you'll ask after the kind is chosen.
 
 ---
 
-## Phase 1 — The Interview Loop
+## Phase 1 — Kind Selection (upfront, dropdown)
+
+Before any other question, pick the kind using **two `AskUserQuestion` calls**. This gates everything else — filename, question track, and template sections all branch off it.
+
+### Q1a — High-level category
+
+Use `AskUserQuestion`:
+
+- **header:** `Category`
+- **question:** `What kind of work is this spec for?`
+- **options (4):**
+  - `Build something new` — new feature, product spec, or external integration
+  - `Change existing code` — refactor, migration, or maintenance/tooling
+  - `Fix a bug` — reproducible defect in existing behavior
+  - `Infra or docs` — infrastructure/CI changes or documentation work
+
+### Q1b — Specific kind
+
+Based on Q1a, follow up with a second `AskUserQuestion` narrowing to one kind. Only show the options that belong under the category the user picked:
+
+| Q1a choice | Q1b options |
+|------------|-------------|
+| Build something new | `feat` (new feature), `integration` (external service), `prd` (product requirements doc) |
+| Change existing code | `refactor` (no behavior change), `migration` (schema/data change), `chore` (deps, tooling, cleanup) |
+| Fix a bug | `fix` (single option — confirm and move on, or skip Q1b if unambiguous) |
+| Infra or docs | `infra` (CI/build/deploy), `docs` (documentation only) |
+
+If the user types "Other" at either step, treat their free text as the kind and map it to the closest standard kind; confirm that mapping in one sentence before continuing.
+
+### Store the kind
+
+Once picked, hold `<kind>` in working memory. It controls:
+- The **question track** used in Phase 2 (see below)
+- The **filename** written in Phase 4
+- The **template sections** included in Phase 4
+
+---
+
+## Phase 2 — Kind-Specific Interview
 
 ### Interview Rules (binding)
 
@@ -40,7 +78,6 @@ The interview is **one question at a time**, multiple-choice-first, adaptive, an
 4. **Re-evaluate after every answer.** Before asking the next question, silently reconsider:
    - Does the user's last answer make any upcoming question irrelevant? Drop it.
    - Did it surface a new concern that needs its own question? Add it.
-   - Did it change the shape of the spec (e.g. "this is actually a migration, not a new feature")? Re-plan.
    - If the plan changed meaningfully, say so in one line before the next question: *"Based on that, I'm dropping the UI question and adding one about rollback strategy."*
 5. **Brainstorming mode (`?`).** When the user picks `?)`, switch tone: lay out 2–4 options with tradeoffs in 1 sentence each, give your recommendation + why, then ask them to confirm or redirect. Then continue the interview.
 6. **Escape hatches the user can type any time:**
@@ -50,47 +87,76 @@ The interview is **one question at a time**, multiple-choice-first, adaptive, an
    - `done` — stop asking; generate the spec with what you have so far
    - `preview` — show the current draft spec, then continue interviewing
 
-### Question Categories (pick the ones that apply, in this order)
+### Question Tracks by Kind
 
-Not every spec needs every category. Use judgment — a small refactor doesn't need a UI section; a backend-only feature doesn't need a migration plan unless it touches the DB.
+Pick the track matching the kind chosen in Phase 1. These are **targets, not scripts** — drop questions the user already answered in Phase 1 or the config already covers. Always start by confirming the **one-line objective** and **slug** (filename suffix).
 
-**Framing (almost always asked):**
-- Spec kind (feature / migration / refactor / integration / infra / bugfix / PRD)
-- One-line objective
-- Why now / business driver
-- Scope boundary — what's explicitly out of scope
+**`feat` — new feature (6–9 questions):**
+1. One-line objective
+2. Why now / business driver
+3. Scope boundary — what's explicitly out of scope
+4. Data/schema changes? (new tables / new fields / none)
+5. Who triggers it? (user action / agent / system / cron / external)
+6. UI surface? (new page / new component / no UI)
+7. Sync vs async, failure mode, idempotency
+8. Config or extensibility knobs
+9. Test strategy (unit / integration / e2e / manual)
 
-**Data & State:**
-- New tables / schema changes? (yes / no / not sure)
-- New fields on existing records?
-- Migration of existing data (backfill / lazy / none)?
-- Retention policy?
+**`fix` — bug (3–5 questions):**
+1. One-line description of the broken behavior
+2. Reproduction steps (or "intermittent — no repro yet")
+3. Root cause hypothesis (or `?)` if unknown — brainstorm it)
+4. Scope of fix — minimal patch vs. clean up adjacent code
+5. Regression prevention — new test vs. manual verify only
 
-**Behavior:**
-- Who triggers this? (user / agent / system / external API / cron)
-- Sync vs async? Fire-and-forget vs awaited?
-- Failure mode — what happens when it breaks?
-- Idempotency requirements?
+**`chore` — maintenance (1–3 questions, keep it quick):**
+1. What's changing (deps bump / tooling / config / cleanup / rename)
+2. Why now (if not obvious)
+3. Risk surface — any runtime behavior change, or purely mechanical?
 
-**Interfaces:**
-- UI surface (new page / new component in existing page / no UI)?
-- API endpoints (internal / MCP / webhook / none)?
-- CLI or config exposure?
+**`refactor` — restructure without behavior change (3–5 questions):**
+1. Current pain point (one line)
+2. Scope — which files/modules
+3. Behavior preservation — existing test coverage, or tests needed first
+4. Rollout — one atomic PR vs. series of smaller PRs
+5. Risk — anything shared/exported that callers depend on
 
-**Config & Extensibility:**
-- Hard-coded vs config-driven vs DB-driven?
-- Per-user vs global?
-- Defaults?
+**`migration` — schema or data change (4–6 questions):**
+1. What's changing (schema / data shape / stored values)
+2. Backfill strategy (eager SQL / lazy on read / background job / none)
+3. Rollback plan (down migration / feature flag / forward-only)
+4. Downtime tolerance (zero / brief / scheduled window)
+5. Deployment ordering (migrate first / code first / coordinated)
+6. Data volume affected — rows, size, risk
 
-**Integration:**
-- External services touched?
-- Auth model (existing / new / delegated)?
-- Rate limits or cost concerns?
+**`integration` — external service (4–6 questions):**
+1. Service and use case (one line each)
+2. Auth model (API key / OAuth / service account / existing shared creds)
+3. Rate limits and cost concerns
+4. Failure mode (retry / circuit-break / fallback / fail loud)
+5. Sync vs async — are we blocking a user flow on this call
+6. Where the wiring lives (route / job / MCP tool / client)
 
-**Quality gates:**
-- Test strategy (unit / integration / e2e / manual)?
-- Observability (logs / metrics / traces)?
-- Rollout (flag-gated / staged / instant)?
+**`infra` — infrastructure, build, CI (3–5 questions):**
+1. What's changing (pipeline / runtime / hosting / env)
+2. Environments affected (dev / staging / prod)
+3. Cost impact (if any)
+4. Rollout strategy (flag-gated / staged / instant)
+5. Observability (logs / metrics / alerts added)
+
+**`docs` — documentation only (1–2 questions, keep it quick):**
+1. Audience (contributor / end-user / internal)
+2. Scope — which pages/sections/files
+
+**`prd` — product requirements doc (5–8 questions):**
+1. User problem and who has it
+2. Success metrics (how we know it worked)
+3. MVP scope
+4. Explicit non-goals
+5. Key risks or open product questions
+6. Stakeholders and approvers
+7. Timeline or milestones (if any)
+8. Dependencies on other specs/teams
 
 **Resolve ambiguity as you go.** If the user says "it should be fast," ask what fast means (`<100ms` / `<1s` / `<10s` / `batch OK`). Don't let vague adjectives into the spec.
 
@@ -99,25 +165,49 @@ Not every spec needs every category. Use judgment — a small refactor doesn't n
 Stop when any of these are true:
 - You have enough to write each required section of the spec with specific, non-hand-wavy content
 - The user types `done`
-- You've asked ~12 questions and the remaining ones are minor details (note them as "Open Questions" in the spec instead of asking)
+- You've hit the upper bound for the kind's track and remaining items are minor (record them as "Open Questions")
 
-Err on the side of fewer, sharper questions. A spec with 8 crisp decisions beats one with 20 vague ones.
+For `chore` and `docs`, lean toward **fewer** questions — these should feel fast. For `prd`, `feat`, and `migration`, err toward enough questions to make the spec standalone.
 
 ---
 
-## Phase 2 — Draft Review
+## Phase 3 — Draft Review
 
 Before writing the file:
 
-1. Produce a **Design Decisions** table summarizing every answer (mirror the format in the sample specs — numbered rows with `# | Question | Decision`).
+1. Produce a **Design Decisions** table summarizing every answer (numbered rows: `# | Question | Decision`).
 2. Present it to the user and ask: *"Does this capture the decisions correctly? (yes / edit #N / add a decision)"*
 3. Loop on edits until confirmed.
 
 ---
 
-## Phase 3 — Write the Spec File
+## Phase 4 — Write the Spec File
 
-Write to `.specs/YYYY-MM-DD_<kind>_<slug>.md` using this structure. **Include only the sections that apply** — omit sections that are not relevant (e.g. skip "UI Components" for a backend-only spec).
+Write to `.specs/YYYY-MM-DD_<kind>_<slug>.md` using the structure below. **Include only sections relevant to the kind** — see the Section Map. Section content must be specific; omit empty headers.
+
+### Section Map by Kind
+
+| Section | feat | fix | chore | refactor | migration | integration | infra | docs | prd |
+|---------|:----:|:---:|:-----:|:--------:|:---------:|:-----------:|:-----:|:----:|:---:|
+| Overview | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Design Decisions | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Current vs. Future State | ✓ |   |   | ✓ | ✓ |   | ✓ |   | ✓ |
+| Scope | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Reproduction |   | ✓ |   |   |   |   |   |   |   |
+| Root Cause |   | ✓ |   |   |   |   |   |   |   |
+| Data Model | ✓ |   |   |   | ✓ |   |   |   | ✓ |
+| Behavior / Pipeline | ✓ | ✓ |   | ✓ | ✓ | ✓ | ✓ |   | ✓ |
+| Interfaces (UI/API/MCP/Config) | ✓ |   |   |   |   | ✓ |   |   | ✓ |
+| Migration Plan |   |   |   |   | ✓ |   |   |   |   |
+| Integration Details |   |   |   |   |   | ✓ |   |   |   |
+| Success Metrics |   |   |   |   |   |   |   |   | ✓ |
+| Code Changes | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |   |
+| Implementation Order | ✓ | ✓ |   | ✓ | ✓ | ✓ | ✓ |   |   |
+| Acceptance Criteria | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Open Questions | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Needed from User | ✓ | ✓ |   | ✓ | ✓ | ✓ | ✓ |   | ✓ |
+
+### Template
 
 ```markdown
 # <Kind>: <Title>
@@ -135,7 +225,6 @@ Write to `.specs/YYYY-MM-DD_<kind>_<slug>.md` using this structure. **Include on
 | # | Question | Decision |
 |---|----------|----------|
 | 1 | <question> | <decision> |
-| 2 | ... | ... |
 
 ---
 
@@ -159,37 +248,54 @@ Write to `.specs/YYYY-MM-DD_<kind>_<slug>.md` using this structure. **Include on
 
 ---
 
+## Reproduction            <!-- fix only -->
+
+Steps to reproduce, expected vs. actual, environment.
+
+---
+
+## Root Cause              <!-- fix only -->
+
+What's actually broken and why.
+
+---
+
 ## Data Model
 
-<Only if data/schema changes. Include SQL for new tables, JSON schema diffs for JSONB changes, field-level tables with type + description.>
+<SQL for new tables, JSON schema diffs for JSONB changes, field-level tables with type + description.>
 
 ---
 
 ## Behavior / Pipeline
 
-<How it works at runtime. Include sequence, triggers, failure modes, idempotency notes.>
+<Runtime sequence, triggers, failure modes, idempotency notes.>
 
 ---
 
 ## Interfaces
 
 ### UI Components
-<Only if UI work. List new components, integration points in existing components.>
-
 ### API Endpoints
-<Only if API work. Method, path, input, output, auth.>
-
 ### MCP Tools
-<Only if MCP work. Tool name, input schema, behavior, output.>
-
 ### Config
-<Only if config-driven. TOML/JSON examples, defaults, per-user vs global.>
 
 ---
 
-## Migration Plan
+## Migration Plan           <!-- migration only -->
 
-<Only if migration needed. Migration file name, steps, backfill strategy, rollback.>
+Migration file name, steps, backfill strategy, rollback plan, deployment ordering.
+
+---
+
+## Integration Details      <!-- integration only -->
+
+Service, auth, rate limits, failure mode, retry policy, where the client lives.
+
+---
+
+## Success Metrics          <!-- prd only -->
+
+What we measure and the target values.
 
 ---
 
@@ -204,14 +310,11 @@ Write to `.specs/YYYY-MM-DD_<kind>_<slug>.md` using this structure. **Include on
 ## Implementation Order
 
 1. <step>
-2. <step>
-...
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] <criterion>
 - [ ] <criterion>
 
 ---
@@ -224,14 +327,12 @@ Write to `.specs/YYYY-MM-DD_<kind>_<slug>.md` using this structure. **Include on
 
 ## Needed from User (for `blueprint-execute`)
 
-<Config values, API keys, credentials, design decisions, approvals. Same format blueprint tasks use so they can be surfaced pre-flight.>
-
 - `ITEM_NAME`: <description>
 ```
 
 ---
 
-## Phase 4 — Handoff
+## Phase 5 — Handoff
 
 After writing the file, tell the user:
 
@@ -255,13 +356,15 @@ Keep this summary to ≤5 lines.
 - **Cite file paths.** When the spec touches existing code, give the real path (`components/data/LogCard.tsx`), not a placeholder.
 - **Tables for decisions, SQL for schemas, prose for rationale.** Match the format of `.sample_specs/*.md`.
 - **No marketing language.** "Drastic", "seamless", "powerful" — strike them. Plain engineering prose.
+- **Right-size the spec.** A `chore` spec can be a single page. A `prd` may be several. Don't pad short specs to look thorough.
 
 ---
 
 ## Self-Verification (before saving the file)
 
+- [ ] Kind was selected via `AskUserQuestion` upfront and drives the filename + section map
 - [ ] Every Design Decision row has a concrete answer (no "TBD" except in Open Questions)
 - [ ] Every section that's present has specific content (no empty headers)
 - [ ] File paths referenced exist in the repo, or are clearly marked as new
 - [ ] The spec is standalone — `blueprint-create` could consume it without needing the interview transcript
-- [ ] Filename matches `YYYY-MM-DD_<kind>_<slug>.md` convention
+- [ ] Filename matches `YYYY-MM-DD_<kind>_<slug>.md` and `<kind>` is one of the canonical nine
