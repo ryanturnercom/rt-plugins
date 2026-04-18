@@ -20,13 +20,39 @@ Creates `.claude/rt-agents.toml` with example structure for you to fill in.
 
 ---
 
+### `/rt-agents:spec-create`
+
+Interviews you one question at a time (multiple-choice, adaptive, with a brainstorming mode) to produce a source-of-truth spec markdown file that `blueprint-create` can consume directly.
+
+**Usage:**
+```
+/rt-agents:spec-create item state tracking for extracted reminders
+```
+
+**Features:**
+- **One question at a time** — multiple-choice options with an `other` and `not sure — help me think through this` option
+- **Adaptive** — re-evaluates remaining questions after every answer; drops irrelevant ones, adds ones surfaced by your answers
+- **Brainstorming mode** — pick `?)` on any question to get tradeoff analysis and a recommendation
+- **Escape hatches** — type `skip`, `back`, `why`, `preview`, or `done` at any prompt
+- **Draft review** — shows a Design Decisions table for confirmation before writing the file
+
+**Output:**
+```
+.specs/YYYY-MM-DD_<kind>_<slug>.md
+```
+
+Structure mirrors the sample specs (Design Decisions table, Data Model, Scope, Implementation Order, etc.) and is specific enough to feed straight into `/rt-agents:blueprint-create @.specs/<file>.md`.
+
+---
+
 ### `/rt-agents:blueprint-create`
 
-Creates structured implementation blueprints with epics and tasks.
+Creates structured implementation blueprints with epics and tasks. Best results when fed a spec produced by `/rt-agents:spec-create`.
 
 **Usage:**
 ```
 /rt-agents:blueprint-create user authentication with OAuth and email/password
+/rt-agents:blueprint-create @.specs/2026-04-18_feature_auth.md
 ```
 
 **Output:**
