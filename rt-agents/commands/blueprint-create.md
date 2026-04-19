@@ -53,9 +53,14 @@ After receiving the Glob results:
    - `[blueprint.context]` - Architectural context and conventions
    - `[blueprint.variables]` - Custom variables for template substitution
 
-2. **Gather context** - Ask the user: "Any additional context for this blueprint?" (they can skip)
+2. **Detect source spec** - Inspect the invocation arguments:
+   - If the user passed an `@.specs/<file>.md` reference (or any path under `.specs/`), record that path as `SOURCE_SPEC`. This is the spec this blueprint is derived from.
+   - If no spec was passed, set `SOURCE_SPEC = none` (ad-hoc blueprint).
+   - When `SOURCE_SPEC` is set, read the file and use it as the authoritative requirements source — prefer it over re-interviewing the user.
 
-3. **Analyze requirements** - Break down the feature into logical epics and tasks
+3. **Gather context** - Ask the user: "Any additional context for this blueprint?" (they can skip). Skip this if the spec is clearly complete.
+
+4. **Analyze requirements** - Break down the feature into logical epics and tasks
 
 ## Output Structure
 
@@ -82,6 +87,7 @@ Each epic (`epic-01-epic-name.md`) must contain:
 # Epic: [Epic Title]
 
 **Status:** [ ] In Progress
+**Source spec:** [SOURCE_SPEC path, or "none (ad-hoc blueprint)"]
 
 ## Context
 
@@ -185,6 +191,7 @@ Replace these placeholders with config values (or sensible defaults if not confi
 Before finalizing, confirm:
 - [ ] **Glob tool was actually called** - You used the Glob tool (not just described using it)
 - [ ] **Epic numbering is correct** - First new epic number = highest existing + 1 (or 01 if none)
+- [ ] **Source spec stamped** - Every `epic-*.md` has a `**Source spec:**` line (path or "none")
 - [ ] Each task is complete and executable
 - [ ] Numbering reflects proper dependencies
 - [ ] Context flows from epic to tasks
