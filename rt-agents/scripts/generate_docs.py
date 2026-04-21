@@ -271,7 +271,6 @@ def convert_markdown(content: str) -> str:
         extensions=[
             "tables",
             "fenced_code",
-            "toc",
             "attr_list",
         ]
     )
