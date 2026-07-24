@@ -40,7 +40,7 @@ Search for API specification files.
 
 Search for blueprint epic overview documents.
 
-- **Glob patterns:** `.blueprints/epic-*/epic-*.md`
+- **Glob patterns:** `.blueprints/*/epic-*/epic-*.md` (per-run blueprint dirs) and `.blueprints/epic-*/epic-*.md` (legacy flat layout)
 - **Exclude matches in:** `node_modules/`, `.git/`, `vendor/`
 - **Default title:** Extract the epic name from the filename. Convert `epic-02-documentation-config-command.md` to `"Blueprint: Documentation Config Command"`.
 - **Default mode:** `verbatim`

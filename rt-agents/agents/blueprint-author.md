@@ -14,11 +14,13 @@ You run at high effort because this is the quality bottleneck of the whole bluep
 
 ## What you write
 
-Exactly the files your dispatch names:
-- `.blueprints/epic-NN-<slug>/epic-NN-<slug>.md`
-- `.blueprints/epic-NN-<slug>/tasks/task-MM-<slug>.md`, one per task
+Your dispatch gives you a `FOLDER` — the epic's directory inside this blueprint's run directory (e.g. `.blueprints/2026-07-24_auth/epic-01-auth-foundation/`). Write exactly these files, and nothing outside `FOLDER`:
+- `<FOLDER>/<epic-dirname>.md` — the epic document
+- `<FOLDER>/tasks/task-MM-<slug>.md` — one per task in your dispatch
 
-Write nothing else. Touch no source files. You have no `Edit` or `Bash` tool because you do not need them.
+Use the `FOLDER` path exactly as given. Do not write to `.blueprints/` root or invent a different directory — the run directory is how concurrent blueprints stay isolated, and writing outside your `FOLDER` breaks that.
+
+Touch no source files. You have no `Edit` or `Bash` tool because you do not need them.
 
 ## The bar for an instruction
 

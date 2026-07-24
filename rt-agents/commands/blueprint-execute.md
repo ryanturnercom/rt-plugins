@@ -16,10 +16,17 @@ Three rules govern everything below. They exist because each one, violated, sile
 
 Run these checks before anything else. Each one prevents a mid-run stall.
 
-1. **Locate the blueprint.**
-   - Read `.blueprints/manifest.json`. This is the source of truth for structure and status.
-   - No manifest but `epic-*` folders exist? The blueprint predates manifests. Build one by reading the epic and task files, then write it. Tell the user you did this.
-   - Nothing at all? Tell the user: "No blueprint found. Run `/rt-agents:blueprint-create` first."
+1. **Select the blueprint run directory.** Each blueprint lives in its own directory under `.blueprints/` (e.g. `.blueprints/2026-07-24_auth/`), each with its own `manifest.json` and `inputs.md`. Pick which one to run from the invocation argument:
+
+   - **A name** (`/rt-agents:blueprint-execute auth` or a full run slug) — match it against directory names under `.blueprints/`. If exactly one matches, that is `RUN_DIR`. If several match, list them and ask which. If none, say so and list what exists.
+   - **`--all`** — collect every run directory whose manifest has at least one non-`completed` task, ordered oldest first. Execute them **in sequence**, running this whole command's Phases 1–5 for each, and report per-blueprint at the end. Do not interleave two blueprints' waves.
+   - **No argument** — default to the **newest** run directory (latest by the date in its slug, breaking ties by directory mtime). State which one you picked in one line so the user can correct you before work starts.
+
+   Then load `<RUN_DIR>/manifest.json` — the source of truth for that blueprint's structure and status.
+
+   **Legacy fallback.** If `.blueprints/` has no run subdirectories but has a flat `.blueprints/manifest.json` or bare `.blueprints/epic-*` folders (a pre-namespacing blueprint), treat `.blueprints/` itself as the single `RUN_DIR`. If there is no manifest at all but epic folders exist, build one by reading the epic and task files, then write it there. Tell the user you did this.
+
+   Nothing anywhere? Tell the user: "No blueprint found. Run `/rt-agents:blueprint-create` first."
 
 2. **Verify the permission allowlist.** Read `.claude/settings.json` and check `permissions.allow` covers the execution set (`Edit`, `Write(.blueprints/**)`, the package manager and test runner for this project's stack).
 
@@ -29,7 +36,7 @@ Run these checks before anything else. Each one prevents a mid-run stall.
 
    This single check is worth more clock-time than anything else in this command.
 
-3. **Load inputs.** Read `.blueprints/inputs.md`. These values were collected at blueprint creation and are passed into subagent prompts verbatim.
+3. **Load inputs.** Read `<RUN_DIR>/inputs.md`. These values were collected at blueprint creation and are passed into subagent prompts verbatim.
    - Any item marked `*(skipped)*` — mark every task listing it in `needs` as `blocked_on_input`. Do not ask the user for it now; they already declined.
    - No inputs file, but tasks declare `needs`? Collect them **now, all at once**, in a single message, then write the file. This is the only point in execution where you may ask for input.
 

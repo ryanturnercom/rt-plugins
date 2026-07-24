@@ -24,15 +24,18 @@ Do **not** write task files yourself. On a six-epic blueprint that is forty-plus
    - If the user passed an `@.specs/<file>.md` reference (or any path under `.specs/`), record it as `SOURCE_SPEC` and **read it in full**. It is the authoritative requirements source — prefer it over re-interviewing.
    - If no spec was passed, set `SOURCE_SPEC = none` (ad-hoc blueprint).
 
-3. **Determine the starting epic number** — in this order:
-   - Read `.blueprints/manifest.json`. If it exists, `STARTING_EPIC` = highest epic id in it + 1.
-   - If no manifest, call **Glob** with pattern `.blueprints/epic-*/epic-*.md`. Extract the epic number from each folder name (`.blueprints/epic-03-auth/epic-03-auth.md` → `03`), take the highest, add 1.
-   - If neither yields matches, `STARTING_EPIC = 01`.
-   - Format with a leading zero (3+1 → `04`).
+3. **Choose this blueprint's run directory.** Every blueprint gets its own directory under `.blueprints/`, and everything this command writes — manifest, inputs, epics — lives inside it. Nothing is ever written to `.blueprints/` root. This is what makes concurrent `blueprint-create` runs safe: two runs land in two directories and share no path, so there is no file to fight over.
 
-   State one line before proceeding: `Existing epics: [highest NN or "none"]. New epics start at epic-[STARTING_EPIC].`
+   - `RUN_SLUG` = `<YYYY-MM-DD>_<topic-slug>`. Derive the topic slug from the spec filename (drop its date and kind prefix) or the invocation topic. Get the date from `date +%Y-%m-%d` — do not guess it.
+   - `RUN_DIR` = `.blueprints/<RUN_SLUG>/`.
+   - If `RUN_DIR` already exists (same date and topic), append `-2`, `-3`, … until the name is free. Never write into an existing run's directory.
+   - **Epic numbering is local to the run and always starts at `epic-01`.** There is no cross-run numbering, no Glob of other epics, no highest-plus-one. Each run's epics are numbered independently within its own directory.
+
+   State one line before proceeding: `This blueprint: RUN_DIR. Epics start at epic-01.`
 
 4. **Survey the codebase** — enough to assign real file paths in the skeleton. Glob the relevant source directories. You need actual paths, not placeholders, because file ownership is what determines how wide execution can parallelize.
+
+Throughout the rest of this command, `<RUN_DIR>/` is the directory chosen here. Every path below is relative to it.
 
 ---
 
@@ -101,7 +104,7 @@ Ask: **"Approve this decomposition, or tell me what to change?"** Loop on edits 
    - Use a **single plain-text message** listing all free-text items (credentials, URLs, keys) together, since those cannot be multiple-choice. One message, all items, not one per item.
 5. **Accept `skip`** on any item. A skipped item is recorded, and every task depending on it is marked `blocked_on_input` in the manifest so execution knows to skip rather than stall.
 
-Write the collected values to `.blueprints/inputs.md`:
+Write the collected values to `<RUN_DIR>/inputs.md` (never to `.blueprints/inputs.md` — that shared path is exactly what concurrent runs would clobber):
 
 ```markdown
 # Blueprint Inputs
@@ -111,27 +114,31 @@ Write the collected values to `.blueprints/inputs.md`:
 
 | Name | Value | Used by |
 |------|-------|---------|
-| `DATABASE_URL` | postgresql://localhost:5432/app | epic-04/task-01 |
-| `ERROR_COLOR` | #dc2626 | epic-05/task-03 |
-| `STRIPE_API_KEY` | *(skipped)* | epic-06/task-02 |
+| `DATABASE_URL` | postgresql://localhost:5432/app | epic-01/task-01 |
+| `ERROR_COLOR` | #dc2626 | epic-02/task-03 |
+| `STRIPE_API_KEY` | *(skipped)* | epic-03/task-02 |
 ```
 
-**Verify `.blueprints/inputs.md` is gitignored.** If it is not, add it to `.gitignore` before writing the file. If you cannot write to `.gitignore`, tell the user plainly and let them decide whether to continue.
+**Verify these inputs files are gitignored.** The pattern `.blueprints/*/inputs.md` covers every run directory. If it is not in `.gitignore`, add it before writing the file. If you cannot write to `.gitignore`, tell the user plainly and let them decide whether to continue.
 
 ---
 
 ## Phase 3 — Write the Manifest
 
-Write `.blueprints/manifest.json`. This is the machine-readable source of truth for execution status — `blueprint-execute` reads this one file instead of parsing status lines out of every markdown file on every wave.
+Write `<RUN_DIR>/manifest.json`. This is the machine-readable source of truth for this blueprint's structure and status — `blueprint-execute` reads this one file instead of parsing status lines out of every markdown file on every wave.
 
-If a manifest already exists, **merge**: preserve existing epics and their statuses, append the new ones.
+**Each run owns its own manifest — there is no merge.** Because the run directory is fresh (Phase 0 guaranteed it), you always write a complete manifest, never read-modify-write a shared one. Dropping the merge step is what removes the lost-update race that a shared `.blueprints/manifest.json` would have under concurrent runs.
+
+Every `path` in the manifest is relative to the repository root and includes `<RUN_DIR>`.
 
 ```json
 {
-  "version": 1,
+  "version": 2,
+  "run_slug": "2026-07-24_auth",
+  "run_dir": ".blueprints/2026-07-24_auth",
   "created": "YYYY-MM-DD",
   "source_spec": ".specs/2026-07-24_feat_auth.md",
-  "inputs_file": ".blueprints/inputs.md",
+  "inputs_file": ".blueprints/2026-07-24_auth/inputs.md",
   "config": {
     "language": "typescript",
     "framework": "nextjs",
@@ -140,18 +147,18 @@ If a manifest already exists, **merge**: preserve existing epics and their statu
   },
   "epics": [
     {
-      "id": "epic-04",
+      "id": "epic-01",
       "slug": "auth-foundation",
       "title": "Auth Foundation",
-      "path": ".blueprints/epic-04-auth-foundation/epic-04-auth-foundation.md",
+      "path": ".blueprints/2026-07-24_auth/epic-01-auth-foundation/epic-01-auth-foundation.md",
       "status": "pending",
       "depends_on": [],
       "tasks": [
         {
-          "id": "epic-04/task-01",
+          "id": "epic-01/task-01",
           "slug": "database-schema",
           "title": "Create user + session tables",
-          "path": ".blueprints/epic-04-auth-foundation/tasks/task-01-database-schema.md",
+          "path": ".blueprints/2026-07-24_auth/epic-01-auth-foundation/tasks/task-01-database-schema.md",
           "status": "pending",
           "depends_on": [],
           "files": ["prisma/schema.prisma"],
@@ -181,7 +188,7 @@ The authoring protocol — what files to write, the quality bar for instructions
 
 ```
 EPIC: epic-NN-<slug> — <title>
-FOLDER: .blueprints/epic-NN-<slug>/
+FOLDER: <RUN_DIR>/epic-NN-<slug>/
 
 SOURCE SPEC: <path, or "none">
 
@@ -227,7 +234,7 @@ EPIC DOCUMENT FORMAT:
 
 When all authoring agents have reported:
 
-1. **Confirm every expected file exists** — Glob `.blueprints/epic-*/tasks/*.md` and diff against the manifest. Re-spawn an author for any epic that came back short.
+1. **Confirm every expected file exists** — Glob `<RUN_DIR>/epic-*/tasks/*.md` and diff against the manifest. Re-spawn an author for any epic that came back short.
 2. **Collect `issues`** from every agent report. Surface them to the user.
 3. **Validate the dependency graph** — no cycles, every `depends_on` id resolves to a real task.
 4. **Check file-ownership conflicts** — if two `parallel_safe` tasks with no dependency relationship declare the same path, either add a dependency edge or flag it so execution knows to isolate them.
@@ -237,17 +244,18 @@ When all authoring agents have reported:
 ```
 ## Blueprint Created
 
-6 epics, 34 tasks written to .blueprints/
+6 epics, 34 tasks written to .blueprints/2026-07-24_auth/
 Source spec: .specs/2026-07-24_feat_auth.md
-Manifest: .blueprints/manifest.json
-Inputs: .blueprints/inputs.md (3 collected, 1 skipped)
+Manifest: .blueprints/2026-07-24_auth/manifest.json
+Inputs: .blueprints/2026-07-24_auth/inputs.md (3 collected, 1 skipped)
 
 Execution shape: max dependency depth 3, widest wave 9 tasks
 Complexity mix: 18 mechanical, 13 standard, 3 deep
 
-Skipped inputs blocking: epic-06/task-02 (STRIPE_API_KEY)
+Skipped inputs blocking: epic-03/task-02 (STRIPE_API_KEY)
 
-Next: /rt-agents:blueprint-execute
+Next: /rt-agents:blueprint-execute 2026-07-24_auth
+   (or just /rt-agents:blueprint-execute — it defaults to the newest blueprint)
 ```
 
 ---
@@ -376,11 +384,12 @@ Tell the user this costs meaningfully more tokens before starting it.
 
 Before reporting completion:
 
-- [ ] Epic numbering starts at highest existing + 1 (or 01), verified against manifest or Glob
+- [ ] A fresh `<RUN_DIR>` was chosen; nothing was written to `.blueprints/` root or into an existing run directory
+- [ ] Epic numbering is local to this run and starts at `epic-01`
 - [ ] Skeleton was approved by the user before any file was written
 - [ ] Every user input was collected in Phase 2 — no task file contains an unresolved prompt for the user
-- [ ] `.blueprints/inputs.md` is gitignored
-- [ ] `manifest.json` written and every task in it has a real file on disk
+- [ ] `<RUN_DIR>/inputs.md` is covered by a gitignore rule (`.blueprints/*/inputs.md`)
+- [ ] `<RUN_DIR>/manifest.json` written and every task in it has a real file on disk
 - [ ] Every `epic-*.md` has a `**Source spec:**` line
 - [ ] Every task has `Files`, `Parallel-safe`, and `Complexity` populated
 - [ ] Dependency graph is acyclic and every reference resolves

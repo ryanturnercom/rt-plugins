@@ -99,13 +99,15 @@ Notes on scope:
 
 Ask the user before writing: show the entries you are about to add and confirm. If they decline, tell them `blueprint-execute` will prompt during runs and offer `--dangerously-skip-permissions` as their alternative (their call, not yours).
 
-### Step 4: Ensure inputs file is gitignored
+### Step 4: Ensure inputs files are gitignored
 
-`blueprint-create` writes collected credentials and decisions to `.blueprints/inputs.md`. Append to `.gitignore` if not already present:
+`blueprint-create` writes collected credentials and decisions to `<run-dir>/inputs.md` — one per blueprint, each in its own directory under `.blueprints/`. The glob below covers every run directory. Append to `.gitignore` if not already present:
 
 ```
-.blueprints/inputs.md
+.blueprints/*/inputs.md
 ```
+
+If an older flat `.blueprints/inputs.md` entry is already present, leave it — it does no harm and covers pre-namespacing blueprints.
 
 ### Step 5: Open for editing
 

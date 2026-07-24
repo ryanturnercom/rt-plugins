@@ -3,3 +3,4 @@ __pycache__/
 *.pyo
 
 .rt-documentation/
+.claude/settings.local.json

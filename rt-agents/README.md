@@ -19,7 +19,7 @@ Creates the configuration file, sets up the execution permission allowlist, and 
 Creates:
 - `.claude/rt-agents.toml` — tech stack, architectural context, execution defaults
 - `.claude/settings.json` `permissions.allow` entries — merged, never overwritten
-- `.gitignore` entry for `.blueprints/inputs.md`
+- `.gitignore` entry for `.blueprints/*/inputs.md` (per-blueprint input files, which may hold secrets)
 
 **Run this before your first `blueprint-execute`.** Without the allowlist, every parallel subagent stalls on a permission prompt mid-run, which serializes execution and is the most common cause of slow blueprint runs.
 
@@ -67,24 +67,27 @@ Creates structured implementation blueprints with epics and tasks. Best results 
 **How it works:**
 
 1. **Designs the skeleton centrally** — epics, tasks, dependencies, file ownership, and complexity are decided in one place, where global reasoning is possible. Presented as a table for a single approval gate.
-2. **Front-loads every user input** — all credentials, decisions, and approvals are collected here, once, and written to `.blueprints/inputs.md`. Execution never has to ask.
+2. **Front-loads every user input** — all credentials, decisions, and approvals are collected here, once, and written to the blueprint's `inputs.md`. Execution never has to ask.
 3. **Fans out authoring** — one subagent per epic writes that epic's files, all spawned in parallel. A six-epic blueprint goes from ~40 sequential writes to a single wave.
-4. **Writes a manifest** — `.blueprints/manifest.json` becomes the machine-readable source of truth for structure and status.
+4. **Writes a manifest** — the blueprint's `manifest.json` becomes the machine-readable source of truth for structure and status.
+
+Each blueprint gets its **own directory** under `.blueprints/`, named `<date>_<slug>/`, holding its own manifest, inputs, and epics. Two blueprints created at the same time never share a file, so concurrent `blueprint-create` runs can't clobber each other's inputs or manifest.
 
 Pass `swarm` to author and critique with a `Workflow` pipeline — each epic's task files get an executability critique as soon as they're authored. Higher token cost, better task files.
 
 **Output:**
 ```
 .blueprints/
-├── manifest.json                 # Structure + status, machine-readable
-├── inputs.md                     # Collected user values (gitignored)
-├── epic-01-auth-foundation/
-│   ├── epic-01-auth-foundation.md
-│   └── tasks/
-│       ├── task-01-database-schema.md
-│       └── task-02-user-model.md
-└── epic-02-oauth-integration/
-    └── ...
+└── 2026-04-18_auth/              # one directory per blueprint (date_slug)
+    ├── manifest.json             # Structure + status, machine-readable
+    ├── inputs.md                 # Collected user values (gitignored)
+    ├── epic-01-auth-foundation/
+    │   ├── epic-01-auth-foundation.md
+    │   └── tasks/
+    │       ├── task-01-database-schema.md
+    │       └── task-02-user-model.md
+    └── epic-02-oauth-integration/
+        └── ...
 ```
 
 **Design rules it applies** (these are what determine execution speed):
@@ -101,8 +104,12 @@ Executes a blueprint with parallel subagents, manifest-tracked status, and optio
 
 **Usage:**
 ```
-/rt-agents:blueprint-execute
+/rt-agents:blueprint-execute              # runs the newest blueprint
+/rt-agents:blueprint-execute auth         # runs the blueprint whose slug matches "auth"
+/rt-agents:blueprint-execute --all        # runs every pending blueprint, in sequence
 ```
+
+Blueprints live in per-run directories under `.blueprints/`. With no argument, execute picks the **newest** one and states which. Pass a name to target a specific blueprint, or `--all` to work through every blueprint that still has pending tasks, oldest first.
 
 **Features:**
 - **Permission preflight** — verifies the allowlist before starting, so no subagent stalls on a prompt mid-run
@@ -271,8 +278,8 @@ The `tools:` field limits which tools an agent *has*. It does not grant permissi
 ```
 /rt-agents:create-config                        # once per project
 /rt-agents:spec-create <topic>                  # interview → .specs/*.md
-/rt-agents:blueprint-create @.specs/<file>.md   # skeleton → inputs → fan-out authoring
-/rt-agents:blueprint-execute                    # parallel implementation
+/rt-agents:blueprint-create @.specs/<file>.md   # skeleton → inputs → fan-out authoring (own dir)
+/rt-agents:blueprint-execute                    # runs the newest blueprint (or name / --all)
 ```
 
 ## Tips
