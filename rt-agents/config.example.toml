@@ -18,6 +18,27 @@ conventions = "All models must extend BaseEntity."
 company = "Acme Corp"
 style_guide = "airbnb"
 
+[execution]
+# Defaults for /rt-agents:blueprint-execute
+
+# Orchestration mode:
+#   "standard" - Agent fan-out, wave-based (good default)
+#   "swarm"    - Workflow pipeline with per-task verification (faster on large
+#                blueprints, meaningfully higher token cost)
+mode = "standard"
+
+# Pause for review after each epic. false runs straight through, writing a
+# report at each epic boundary instead of stopping.
+stop_at_epic_checkpoints = false
+
+# Soft cap on concurrent subagents per wave. The runtime caps concurrency at
+# min(16, cores - 2) regardless; anything above that queues.
+max_parallel = 10
+
+# Model used for tasks marked **Complexity:** mechanical. These tasks run on a
+# faster model at low reasoning effort via the blueprint-mechanical agent.
+model_for_mechanical = "sonnet"
+
 [documentation]
 # Output directory (relative to project root)
 output_dir = ".rt-documentation"

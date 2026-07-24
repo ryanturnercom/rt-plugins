@@ -325,9 +325,14 @@ What we measure and the target values.
 
 ---
 
-## Needed from User (for `blueprint-execute`)
+## Needed from User
 
-- `ITEM_NAME`: <description>
+<!-- Collected up front by `blueprint-create`, so `blueprint-execute` never has
+     to stop and ask. List every credential, config value, design decision, and
+     approval the implementation will need. Be exhaustive — an item missed here
+     becomes an interruption mid-execution. -->
+
+- `ITEM_NAME`: <description of what's needed and how it will be used>
 ```
 
 ---
@@ -339,7 +344,8 @@ After writing the file, tell the user:
 1. Where the spec was written (relative path)
 2. Total decisions captured
 3. Any "Open Questions" they should resolve before blueprinting
-4. The exact next command to run:
+4. The count of "Needed from User" items — `blueprint-create` will ask for these values up front
+5. The exact next command to run:
    ```
    /rt-agents:blueprint-create @.specs/<filename>.md
    ```

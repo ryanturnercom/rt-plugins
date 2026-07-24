@@ -10,13 +10,18 @@ Add to your Claude Code settings or install via the rt-plugins marketplace.
 
 ### `/rt-agents:create-config`
 
-Creates the configuration file and opens it for editing.
+Creates the configuration file, sets up the execution permission allowlist, and opens the config for editing.
 
 ```
 /rt-agents:create-config
 ```
 
-Creates `.claude/rt-agents.toml` with example structure for you to fill in.
+Creates:
+- `.claude/rt-agents.toml` — tech stack, architectural context, execution defaults
+- `.claude/settings.json` `permissions.allow` entries — merged, never overwritten
+- `.gitignore` entry for `.blueprints/inputs.md`
+
+**Run this before your first `blueprint-execute`.** Without the allowlist, every parallel subagent stalls on a permission prompt mid-run, which serializes execution and is the most common cause of slow blueprint runs.
 
 ---
 
@@ -56,26 +61,43 @@ Creates structured implementation blueprints with epics and tasks. Best results 
 ```
 /rt-agents:blueprint-create user authentication with OAuth and email/password
 /rt-agents:blueprint-create @.specs/2026-04-18_feature_auth.md
+/rt-agents:blueprint-create swarm @.specs/2026-04-18_feature_auth.md
 ```
+
+**How it works:**
+
+1. **Designs the skeleton centrally** — epics, tasks, dependencies, file ownership, and complexity are decided in one place, where global reasoning is possible. Presented as a table for a single approval gate.
+2. **Front-loads every user input** — all credentials, decisions, and approvals are collected here, once, and written to `.blueprints/inputs.md`. Execution never has to ask.
+3. **Fans out authoring** — one subagent per epic writes that epic's files, all spawned in parallel. A six-epic blueprint goes from ~40 sequential writes to a single wave.
+4. **Writes a manifest** — `.blueprints/manifest.json` becomes the machine-readable source of truth for structure and status.
+
+Pass `swarm` to author and critique with a `Workflow` pipeline — each epic's task files get an executability critique as soon as they're authored. Higher token cost, better task files.
 
 **Output:**
 ```
 .blueprints/
+├── manifest.json                 # Structure + status, machine-readable
+├── inputs.md                     # Collected user values (gitignored)
 ├── epic-01-auth-foundation/
 │   ├── epic-01-auth-foundation.md
 │   └── tasks/
 │       ├── task-01-database-schema.md
 │       └── task-02-user-model.md
-├── epic-02-oauth-integration/
-│   └── ...
-└── ...
+└── epic-02-oauth-integration/
+    └── ...
 ```
+
+**Design rules it applies** (these are what determine execution speed):
+- Maximize disjoint file ownership — overlapping files can't run concurrently
+- Target 6–12 parallel-safe tasks per epic (runtime caps concurrency at `min(16, cores-2)`)
+- Minimize dependency *depth*, not count — wall-clock follows the longest chain
+- Mark complexity honestly — `mechanical` tasks run on a faster model at execution time
 
 ---
 
 ### `/rt-agents:blueprint-execute`
 
-Executes a blueprint with parallel subagents, real-time progress tracking, and implementation notes.
+Executes a blueprint with parallel subagents, manifest-tracked status, and optional Workflow swarm orchestration.
 
 **Usage:**
 ```
@@ -83,23 +105,33 @@ Executes a blueprint with parallel subagents, real-time progress tracking, and i
 ```
 
 **Features:**
-- **Pre-flight input gathering** - Collects all configs, keys, and decisions needed before starting each epic
-- **Autonomous execution** - Subagents have pre-granted permissions for file/code operations (no routine interruptions)
-- **Parallel execution** - Analyzes task dependencies and runs all independent tasks simultaneously
-- **Real-time updates** - Updates blueprint files as tasks start and complete
-- **Implementation notes** - Adds summary, files changed, and key decisions to each completed task
-- **Epic checkpoints** - Pauses after each epic for review before continuing
-- **Smart resume** - Detects existing progress and offers to resume or restart
-- **Error handling** - On failure, continues independent branches while blocking dependents
+- **Permission preflight** — verifies the allowlist before starting, so no subagent stalls on a prompt mid-run
+- **Zero mid-run interruptions** — inputs were collected at blueprint creation; mode is chosen once up front
+- **Conflict-free wave packing** — waves are packed from dependency-satisfied, file-disjoint tasks
+- **Per-task model selection** — `mechanical` tasks run on a faster model; in swarm mode they also drop to low reasoning effort while `deep` tasks get high
+- **Subagent-owned status** — each agent writes its own task file status, so the orchestrator never interleaves edits between spawns (which would serialize the wave)
+- **Manifest reconciliation** — one manifest read per wave instead of parsing status out of every markdown file
+- **Swarm mode** — `Workflow` orchestration with pipelined verification, no barrier between implement and verify, plus `resumeFromRunId` so a retry replays completed work from cache
+- **Worktree isolation** — used automatically when two long-running tasks have incidental file overlap
+- **Error handling** — independent branches continue; only true dependents are blocked
+
+**Execution modes** (chosen once, at start):
+
+| Mode | Orchestration | When |
+|------|---------------|------|
+| Standard | Agent fan-out, wave-based | Default. Good for most blueprints. |
+| Swarm | `Workflow` with `pipeline()` | Large blueprints. Faster wall-clock, meaningfully higher token cost. |
 
 **Status Markers:**
-| Marker | Meaning |
-|--------|---------|
-| `[ ]` | Pending |
-| `[x]` | In Progress |
-| `[✓]` | Completed |
-| `[!]` | Failed |
-| `[~]` | Blocked |
+| Marker | Manifest status | Meaning |
+|--------|-----------------|---------|
+| `[ ]` | `pending` | Not started |
+| `[x]` | `in_progress` | Currently executing |
+| `[✓]` | `completed` | Finished successfully |
+| `[!]` | `failed` | Encountered an error |
+| `[~]` | `blocked` | Waiting on a failed dependency |
+| `[⊘]` | `blocked_on_input` | Required input was skipped at creation |
+| `[-]` | `skipped` | Skipped by user request |
 
 **Commands during execution:**
 - `pause` - Stop after current wave
@@ -178,6 +210,13 @@ conventions = "All models must extend BaseEntity."
 # Custom variables available as {{variable_name}} in prompts
 company = "Acme Corp"
 style_guide = "airbnb"
+
+[execution]
+# Defaults for blueprint-execute
+mode = "standard"                  # "standard" or "swarm"
+stop_at_epic_checkpoints = false   # run straight through
+max_parallel = 10                  # soft cap per wave
+model_for_mechanical = "sonnet"    # model for **Complexity:** mechanical tasks
 ```
 
 ### Config Sections
@@ -187,20 +226,60 @@ style_guide = "airbnb"
 | `[blueprint]` | Tech stack preferences |
 | `[blueprint.context]` | Architectural patterns and conventions |
 | `[blueprint.variables]` | Custom template variables |
+| `[execution]` | Execution mode, concurrency, and model defaults |
 
 ## Task Format
 
 Generated tasks include:
 
-- **Status** - Tracking checkbox
-- **Dependencies** - What must complete first
-- **Context** - Tech stack + architectural context
-- **Needed from User** - Configs, keys, accounts, decisions required (collected before epic starts)
-- **Instructions** - Step-by-step implementation guide
-- **Acceptance Criteria** - Definition of done
+- **Status** — tracking checkbox, written by the executing agent itself
+- **Dependencies** — task ids that must complete first
+- **Files** — every path the task creates or modifies; drives conflict-free wave packing
+- **Parallel-safe** — whether the task can run alongside others
+- **Complexity** — `mechanical` | `standard` | `deep`; drives model and effort selection
+- **Context** — tech stack + architectural context
+- **User Inputs** — values collected at blueprint creation, inlined and ready to use
+- **Instructions** — step-by-step implementation guide
+- **Verification** — the exact command to run and what passing looks like
+- **Acceptance Criteria** — definition of done
+
+`Files`, `Parallel-safe`, and `Complexity` are load-bearing. Tasks missing them fall back to the slowest, most conservative execution path.
+
+## Bundled Agents
+
+The plugin ships five agent definitions in `agents/`. Each sets its own model, reasoning effort, and tool set in frontmatter, and the commands dispatch to them by `subagent_type`.
+
+| Agent | Model / Effort | Role |
+|-------|----------------|------|
+| `blueprint-author` | session model, high | Writes one epic's task files. Read/Write/Glob/Grep only — cannot touch source code. |
+| `blueprint-mechanical` | sonnet, low | Executes tasks whose instructions fully determine the output. |
+| `blueprint-standard` | session model, medium | Executes tasks needing normal implementation judgment. |
+| `blueprint-deep` | session model, high | Executes tasks needing architectural judgment. |
+| `blueprint-verifier` | session model, high | Independently checks a completed task against its acceptance criteria. Read-only. |
+
+**This is how per-task effort tuning works.** The `Agent` tool accepts a `model` parameter but has no reasoning-effort parameter — effort is set in the agent definition's frontmatter (`effort: low`). Selecting the agent type is therefore how you select the effort tier, and a task's `**Complexity:**` field is what picks the agent. In swarm mode, Workflow's `agent()` can additionally override `effort` per call.
+
+Two consequences worth knowing:
+
+- **Cheap tasks get cheap agents.** Most tasks in a well-specified blueprint are mechanical, and running them on sonnet at low effort rather than the session model at full depth is a large share of the wall-clock saving.
+- **The protocol lives in the agent, not the prompt.** Status writes, ownership rules, failure handling, and reporting format are in the definitions, so per-task prompts carry only the task path, file ownership, inputs, and dependency context. That keeps prompt cost flat across large waves.
+
+The `tools:` field limits which tools an agent *has*. It does not grant permission to use them without prompting — that still comes from `.claude/settings.json`, which is why `create-config` writes the allowlist.
+
+## Workflow
+
+```
+/rt-agents:create-config                        # once per project
+/rt-agents:spec-create <topic>                  # interview → .specs/*.md
+/rt-agents:blueprint-create @.specs/<file>.md   # skeleton → inputs → fan-out authoring
+/rt-agents:blueprint-execute                    # parallel implementation
+```
 
 ## Tips
 
-- Run without config for sensible defaults
-- Add project-specific context to get tailored prompts
-- Execute tasks in numbered order for best results
+- **Run `create-config` first.** The permission allowlist it writes is what keeps parallel subagents from stalling on prompts — it's the biggest single factor in execution wall-clock.
+- Feed `blueprint-create` a spec rather than a prose description. Better task files, fewer execution failures.
+- Be exhaustive in the spec's "Needed from User" section. Anything missed there becomes an interruption mid-execution.
+- Use `swarm` mode on large blueprints when clock-time matters more than token cost.
+- On a failed swarm run, keep the `runId` — resuming replays completed agents from cache instead of re-running them.
+- Add project-specific context to `[blueprint.context]` to get tailored task prompts.

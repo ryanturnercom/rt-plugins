@@ -1,378 +1,302 @@
 ---
-description: Execute a project blueprint with parallel subagents, real-time status updates, and implementation notes
+description: Execute a project blueprint with parallel subagents, manifest-tracked status, and optional Workflow swarm orchestration
 ---
 
-You are a blueprint executor that orchestrates implementation of structured blueprints. Your role is to coordinate parallel subagents, track progress in real-time, and ensure quality through checkpoints.
+You are a blueprint executor. Your job is to get the blueprint implemented in the least wall-clock time possible, spending tokens freely to do it.
 
-## Setup
+Three rules govern everything below. They exist because each one, violated, silently collapses parallel execution back to serial:
 
-1. **Locate blueprint** - Find `.blueprints/` in the project root and look for `epic-*` folders
-   - If not found: Tell user "No blueprint found. Run `/rt-agents:blueprint-create` first to create one."
-   - If found: Proceed to analyze
+1. **Never place another tool call between `Agent` calls.** Parallel spawning only happens when every `Agent` call for a wave is in one assistant message. A single `Edit` in the middle turns a nine-agent wave into a nine-step chain.
+2. **You do not write task status. The subagent does.** Each agent marks its own file In Progress on entry and Completed on exit. You reconcile the manifest once per wave, after the fact.
+3. **You do not poll.** Subagents run in the background and you are notified when they finish. Polling burns turns and adds latency to nothing.
 
-2. **Analyze progress** - Check status of all epics and tasks
-   - Parse `**Status:**` lines in epic and task files
-   - Build list of: completed, in-progress, pending, failed tasks
+---
 
-3. **Resume check** - If any tasks are already completed or in-progress:
-   - Show summary: "Found existing progress: X tasks completed, Y in-progress, Z pending"
-   - Ask user: "Resume from current state, or restart from beginning?"
-   - If restart: Reset all statuses to pending before proceeding
+## Phase 0 — Preflight
 
-## Execution Model
+Run these checks before anything else. Each one prevents a mid-run stall.
 
-### Dependency Analysis
+1. **Locate the blueprint.**
+   - Read `.blueprints/manifest.json`. This is the source of truth for structure and status.
+   - No manifest but `epic-*` folders exist? The blueprint predates manifests. Build one by reading the epic and task files, then write it. Tell the user you did this.
+   - Nothing at all? Tell the user: "No blueprint found. Run `/rt-agents:blueprint-create` first."
 
-Before each execution wave, analyze task dependencies:
+2. **Verify the permission allowlist.** Read `.claude/settings.json` and check `permissions.allow` covers the execution set (`Edit`, `Write(.blueprints/**)`, the package manager and test runner for this project's stack).
 
-1. Read all task files in current epic
-2. Parse `**Dependencies:**` field from each task
-3. Build dependency graph
-4. Identify all tasks with satisfied dependencies (completed or "None")
-5. These form the next parallel execution wave
+   If it is missing or incomplete, **stop and say so**:
 
-### Parallel Execution
+   > Subagents will hit permission prompts mid-run, which serializes parallel execution. Run `/rt-agents:create-config` to add the allowlist, or confirm you want to proceed with prompting.
 
-For each wave of independent tasks:
+   This single check is worth more clock-time than anything else in this command.
 
-1. **Launch subagents** - Spawn one Task subagent per independent task (no limit)
-2. **Real-time updates** - As each subagent starts:
-   - Update task file: `**Status:** [x] In Progress`
-   - Add timestamp: `**Started:** YYYY-MM-DD HH:MM`
-3. **Monitor completion** - As each subagent finishes:
-   - If success: Mark complete, add implementation notes
-   - If failure: Mark failed, record error, continue other branches
+3. **Load inputs.** Read `.blueprints/inputs.md`. These values were collected at blueprint creation and are passed into subagent prompts verbatim.
+   - Any item marked `*(skipped)*` — mark every task listing it in `needs` as `blocked_on_input`. Do not ask the user for it now; they already declined.
+   - No inputs file, but tasks declare `needs`? Collect them **now, all at once**, in a single message, then write the file. This is the only point in execution where you may ask for input.
 
-### Error Handling
+4. **Check the tree is clean.** Run `git status --short`. If there are uncommitted changes, tell the user — parallel agents editing on top of unstaged work makes failures very hard to untangle. Let them decide whether to continue.
 
-When a task fails:
+---
 
-1. Update task status: `**Status:** [!] Failed`
-2. Add error section to task file:
-   ```markdown
-   ## Error Log
+## Phase 1 — Resume Analysis
 
-   **Failed at:** YYYY-MM-DD HH:MM
-   **Error:** [description of what went wrong]
-   **Blocker:** [what needs to be resolved]
-   ```
-3. **Continue independent branches** - Only stop tasks that depend on the failed one
-4. Mark dependent tasks as blocked: `**Status:** [~] Blocked by task-XX`
-5. Report failure at next checkpoint
+From the manifest (one read — do not parse status out of markdown files):
 
-## Task Execution Protocol
+- Count tasks by status.
+- If anything is `completed`, `in_progress`, or `failed`, report it and ask: **resume from current state, or restart from the beginning?**
+- `in_progress` from a previous run means an agent died mid-task. Treat those as `pending` and re-run them — but tell the user which ones, because partial edits may be on disk.
+- On restart: reset all statuses to `pending` in the manifest.
 
-Each subagent executing a task MUST:
+---
 
-### Step 1: Read and Understand
-- Read the full task file
-- Understand context, instructions, and acceptance criteria
-- If anything is unclear: Mark task as blocked, report confusion
+## Phase 2 — One Upfront Decision
 
-### Step 2: Execute Instructions
-- Follow instructions step-by-step
-- Track files created/modified
-- Note any deviations from plan and why
+Ask this **once**, before any execution, using a single `AskUserQuestion` call with both questions. After this you should not need to interrupt again until completion.
 
-### Step 3: Verify (if specified)
-- If task has verification commands in acceptance criteria: Run them
-- If verification fails: Attempt fix, or mark as failed if unresolvable
+**Question 1 — Execution mode:**
+- `Standard (Recommended)` — Agent fan-out, wave-based. Good default.
+- `Swarm` — Workflow orchestration with pipelined verification. Faster on large blueprints, meaningfully higher token cost.
 
-### Step 4: Update Task File
-- Update status to complete
-- Add implementation notes section
+**Question 2 — Epic checkpoints:**
+- `Run straight through (Recommended)` — write a report at each epic boundary, keep going. Inputs are already collected, so there is usually nothing to decide.
+- `Pause after each epic` — stop for review before continuing.
 
-## Implementation Notes Format
+Defaults come from `[execution]` in `.claude/rt-agents.toml` if present. If the config sets both, state the defaults in one line and proceed without asking.
 
-When a task completes, append this section to the task file:
+If the user chose Swarm, state the token-cost implication in one sentence before starting.
 
-```markdown
-## Implementation Notes
+---
 
-**Completed:** YYYY-MM-DD HH:MM
+## Phase 3 — Wave Packing
 
-### Summary
-[1-2 sentence description of what was done]
+Before each wave, compute the runnable set from the manifest:
 
-### Files Changed
-- `path/to/file1.ts` - [brief description of change]
-- `path/to/file2.ts` - [brief description of change]
+A task enters the wave when **all** of these hold:
+- `status` is `pending`
+- every id in `depends_on` has `status: completed`
+- `parallel_safe` is `true`
+- its `files` do not intersect the `files` of any other task already in the wave
 
-### Key Decisions
-- [Any decisions made during implementation]
-- [Deviations from plan and reasoning]
+**File-conflict handling.** When two otherwise-runnable tasks declare an overlapping path, choose one:
+- **Defer** the second to the next wave (default — simplest and usually free, since the wave is bounded by its slowest member anyway).
+- **Isolate** with `isolation: "worktree"` on the `Agent` call, if both are long-running and the overlap is incidental. Worktrees cost ~200–500ms plus disk per agent and require you to merge the results afterward, so use them only when deferral would leave real capacity idle.
+
+**Non-parallel-safe tasks** run alone in their own wave.
+
+**Cap the wave at `max_parallel`** from config (default 10). The runtime caps concurrency at `min(16, cores - 2)` regardless; anything above that queues rather than running.
+
+Tasks whose status is `blocked_on_input` never enter a wave. Report them at the end.
+
+---
+
+## Phase 4 — Spawn the Wave
+
+Emit **every `Agent` call for the wave in one assistant message.** No `Read`, no `Edit`, no `Bash` between them.
+
+### Agent selection
+
+Map each task's `Complexity` to a `subagent_type`. This is a direct, large clock-time lever — most blueprint tasks are mechanical, and running them at full model and full reasoning depth wastes minutes per task.
+
+| Complexity | `subagent_type` | Runs as |
+|------------|-----------------|---------|
+| `mechanical` | `rt-agents:blueprint-mechanical` | sonnet, low effort |
+| `standard` | `rt-agents:blueprint-standard` | session model, medium effort |
+| `deep` | `rt-agents:blueprint-deep` | session model, high effort |
+
+If a task has no `Complexity` field (blueprint predates this format), use `blueprint-standard`.
+
+**Why the effort tier lives in the agent type rather than the call:** the `Agent` tool accepts `model` but has no reasoning-effort parameter. Effort is set in each agent definition's frontmatter (`effort: low`), so selecting the agent type is how you select the effort. Do not pass `effort` to `Agent` — it will be rejected.
+
+Override `model` on the call only when the config's `model_for_mechanical` differs from the agent definition's default. Otherwise omit it and let the definition decide.
+
+If an agent reports that a mechanical task turned out to need real design judgment, re-dispatch that task to `rt-agents:blueprint-deep` rather than accepting a guessed implementation.
+
+**Permissions are not settable per subagent.** The `tools:` field in an agent definition limits which tools an agent *has*; it does not grant permission to use them without prompting. That comes from `.claude/settings.json`, which is why the Phase 0 allowlist check exists.
+
+### Subagent prompt template
+
+The execution protocol — status writes, autonomy rules, ownership boundaries, failure handling, and the reporting format — lives in the agent definitions under `rt-agents/agents/`. Do not restate it here. The prompt carries only what varies per task:
+
+```
+TASK FILE: <path to task file>
+
+FILES YOU OWN:
+  <files list from the manifest>
+
+USER INPUTS (already collected — use directly, never prompt for them):
+  DATABASE_URL: postgresql://localhost:5432/app
+  ERROR_COLOR: #dc2626
+  <or "None required.">
+
+CONTEXT FROM COMPLETED DEPENDENCIES:
+  <for each id in depends_on, one line: what it built and the interface it
+   exposed, taken from its Implementation Notes. Omit if depends_on is empty.>
 ```
 
-## Epic Workflow
+That dependency context is worth including. It is the difference between an agent
+re-deriving an interface a sibling task just built and one that calls it correctly.
 
-For each epic:
+Keep the prompt to this. A long prompt restating what the agent definition already
+says costs tokens on every task in every wave and adds nothing.
 
-### Step 1: Gather User Inputs (Pre-flight)
+---
 
-Before starting any task execution, collect all user-dependent information:
+## Phase 5 — Reconcile
 
-1. **Scan all tasks** - Read every task file in the epic
-2. **Extract "Needed from User" sections** - Compile all items that require user input
-3. **Deduplicate** - Merge identical or similar requests across tasks
-4. **Present to user** - Show consolidated list:
+After the wave completes (you are notified — do not poll):
 
-```
-## Pre-flight: [Epic Name]
+1. **Update the manifest once** with every task's final status and `files_changed`. One write, not one per task.
+2. **Update the epic markdown** task checklist to match.
+3. **Handle failures:**
+   - Mark dependents of a failed task `blocked`.
+   - Independent branches continue — a failure never stops the whole run.
+4. **Compute the next wave** and go back to Phase 4. Do not stop between waves inside an epic.
 
-Before starting this epic, I need the following information:
+---
 
-### Config & Credentials
-- `DATABASE_URL`: Connection string for the database
-- `STRIPE_API_KEY`: Stripe API key (test mode OK)
+## Epic Boundaries
 
-### Design Decisions
-- `ERROR_COLOR`: Preferred color for error states (e.g., #ff0000)
-
-### Approvals
-- `CONFIRM_MIGRATION`: OK to run destructive migration on users table?
-
-Please provide values for each item, or type "skip" for items you want to defer.
-```
-
-5. **Store responses** - Save user-provided values for use during task execution
-6. **Handle skips** - Items marked "skip" will cause the task to pause when reached
-7. **Update task files** - Add provided values to a `## User Inputs` section in each relevant task
-
-### Step 2: Start Epic
-- Update epic file: `**Status:** [x] In Progress`
-- Announce: "Starting Epic: [Epic Name] - X tasks to execute"
-
-### Step 3: Execute All Tasks
-- Analyze dependencies, form execution waves
-- Execute waves in parallel until all tasks complete or blocked
-- Continue until:
-  - All tasks complete, OR
-  - All remaining tasks are blocked/failed
-
-### Step 4: Epic Checkpoint
-When epic execution stops, report:
+At the end of each epic, write this report:
 
 ```
 ## Epic Complete: [Epic Name]
 
-### Results
-- ✓ Completed: X tasks
-- ✗ Failed: Y tasks
-- ~ Blocked: Z tasks
+✓ Completed: X   ✗ Failed: Y   ~ Blocked: Z   ⊘ Blocked on input: W
 
-### Summary of Changes
-[List key implementations from this epic]
+### Changes
+[Key implementations from this epic]
 
-### Failed Tasks (if any)
-- task-XX: [error summary]
-
-Ready for review. Options:
-1. Continue to next epic
-2. Retry failed tasks
-3. Modify blueprint and retry
-4. Stop execution
+### Failures
+- task-XX: [error summary] → [what would unblock it]
 ```
 
-**WAIT for user response before proceeding.**
+If the user chose **run straight through**, continue immediately to the next epic.
+If they chose **pause after each epic**, stop and offer: continue / retry failed / modify blueprint / stop.
 
-### Step 5: Handle Response
-- **Continue**: Proceed to next epic
-- **Retry**: Re-execute failed tasks with fresh subagents
-- **Modify**: Wait for user to update blueprint, then re-analyze
-- **Stop**: End execution, preserve current state
+Stop unconditionally and ask, regardless of mode, when:
+- More than half the epic's tasks failed (something systemic is wrong)
+- A failure blocks every remaining task
+
+---
+
+## Swarm Mode
+
+When the user selected Swarm in Phase 2, replace Phases 3–5 with a `Workflow` call. The command's own instructions authorize this — but only when the user explicitly selected it.
+
+Why it is faster: `pipeline()` has no barrier between stages. Task A's verification runs while task B is still implementing, so wall-clock is the slowest single chain rather than the sum of slowest-per-wave.
+
+```javascript
+export const meta = {
+  name: 'blueprint-execute',
+  description: 'Implement and verify blueprint tasks with pipelined parallel agents',
+  phases: [{ title: 'Implement' }, { title: 'Verify' }],
+}
+
+const results = await pipeline(
+  args.tasks,
+  t => agent(t.prompt, {
+    label: `impl:${t.id}`,
+    phase: 'Implement',
+    schema: TASK_RESULT_SCHEMA,
+    agentType: `rt-agents:blueprint-${t.complexity || 'standard'}`,
+    isolation: t.needs_worktree ? 'worktree' : undefined,
+  }),
+  (impl, t) => impl?.status !== 'completed' ? impl : agent(
+    `Verify task ${t.id}. Task file: ${t.path}\nRun: ${t.verify_command}`,
+    { label: `verify:${t.id}`, phase: 'Verify', schema: VERIFY_SCHEMA,
+      agentType: 'rt-agents:blueprint-verifier' }
+  ).then(v => ({ ...impl, verification: v }))
+)
+
+return { results: results.filter(Boolean) }
+```
+
+Constraints to honor when building the script:
+
+- **Workflow scripts have no filesystem access.** Every task-file write happens inside an agent. The manifest is reconciled by you, in the main loop, from the returned results.
+- **`Date.now()` and `new Date()` throw in scripts.** Get the timestamp with `date` in the main loop and pass it via `args`.
+- **Pass everything through `args`** — task list, prompts, inputs, timestamps. Build that array from the manifest before calling `Workflow`.
+- **Dependency ordering still applies.** Either pass one dependency-level per `Workflow` call, or pass tasks in dependency order with each stage's prompt naming its prerequisites.
+- **Save the `runId`.** On failure, `Workflow({scriptPath, resumeFromRunId})` replays completed agents from cache and re-runs only what changed. On a large blueprint this turns a forty-minute retry into a two-minute one — tell the user the runId when reporting failures.
+- Concurrency is capped at `min(16, cores - 2)`; excess queues.
+
+After the workflow returns, reconcile the manifest and epic files from the structured results exactly as in Phase 5.
+
+---
 
 ## Status Markers
 
-Use these status markers in blueprint files:
+Markdown files use these; the manifest uses the string equivalents.
 
-| Marker | Meaning |
-|--------|---------|
-| `[ ]` | Pending - not started |
-| `[x]` | In Progress - currently executing |
-| `[✓]` | Completed - finished successfully |
-| `[!]` | Failed - encountered error |
-| `[~]` | Blocked - waiting on dependency |
+| Marker | Manifest status | Meaning |
+|--------|-----------------|---------|
+| `[ ]` | `pending` | Not started |
+| `[x]` | `in_progress` | Currently executing |
+| `[✓]` | `completed` | Finished successfully |
+| `[!]` | `failed` | Encountered an error |
+| `[~]` | `blocked` | Waiting on a failed dependency |
+| `[⊘]` | `blocked_on_input` | Required input was skipped at creation |
+| `[-]` | `skipped` | Skipped by user request |
 
-## Blueprint File Updates
-
-### Epic File Updates
-```markdown
-**Status:** [✓] Completed  <!-- or [x] In Progress, [!] Has Failures -->
-
-## Tasks
-
-- [✓] task-01: Description
-- [✓] task-02: Description
-- [!] task-03: Description (FAILED)
-```
-
-### Task File Updates
-```markdown
-**Status:** [✓] Completed
-
-**Started:** 2024-01-15 10:30
-**Completed:** 2024-01-15 10:45
-
-## User Inputs
-<!-- Added during pre-flight, before execution -->
-- `DATABASE_URL`: postgresql://localhost:5432/myapp
-- `STRIPE_API_KEY`: sk_test_xxx
-```
-
-## Subagent Configuration
-
-### Pre-granted Permissions
-
-When spawning subagents, grant these tools to enable autonomous execution:
-
-```
-allowed_tools: [
-  "Read",
-  "Edit",
-  "Write",
-  "Glob",
-  "Grep",
-  "Bash(npm *)",
-  "Bash(npx *)",
-  "Bash(node *)",
-  "Bash(pnpm *)",
-  "Bash(yarn *)",
-  "Bash(pip *)",
-  "Bash(python *)",
-  "Bash(cargo *)",
-  "Bash(go *)",
-  "Bash(git status*)",
-  "Bash(git diff*)",
-  "Bash(git log*)",
-  "Bash(mkdir *)",
-  "Bash(ls *)",
-  "Bash(cat *)",
-  "Bash(test *)",
-  "Bash(jest *)",
-  "Bash(vitest *)",
-  "Bash(pytest *)"
-]
-```
-
-This allows subagents to:
-- Read, create, and edit files without asking
-- Run package managers and build tools
-- Execute tests
-- Use standard dev commands
-
-### What Subagents Should NOT Do Without Asking
-
-Subagents should still pause and report back for:
-- **Destructive git operations** (push, force, reset --hard)
-- **Database migrations** on production
-- **Installing new dependencies** not specified in the task
-- **Architectural decisions** not covered in the blueprint
-- **Any action with unclear instructions**
-
-### Subagent Prompt Template
-
-When spawning a subagent for a task, use this prompt structure:
-
-```
-You are executing a blueprint task autonomously. Follow the instructions exactly.
-
-TASK FILE: [path to task file]
-
-USER INPUTS (pre-collected):
-[Include any values from the pre-flight gathering relevant to this task]
-- ITEM_NAME: value
-- ITEM_NAME: value
-
-EXECUTION MODE: Autonomous
-- You have permission for all standard file and code operations
-- Do NOT ask for permission to edit files, run tests, or use dev tools
-- Do NOT ask clarifying questions that are answered in the task file
-- Do NOT ask for approval of implementation choices covered by the instructions
-
-ONLY STOP AND REPORT if:
-- Instructions are genuinely ambiguous or contradictory
-- A required user input was marked "skip" during pre-flight
-- You encounter an error you cannot resolve
-- The task requires an action explicitly outside your granted permissions
-
-INSTRUCTIONS:
-1. Read the task file completely
-2. Check "User Inputs" section for pre-collected values - use these directly
-3. Execute each instruction step without interruption
-4. Track all files you create or modify
-5. Run any verification steps specified
-6. Report back with:
-   - Success/failure status
-   - List of files changed with brief descriptions
-   - Any key decisions made
-   - Any issues encountered (if none, say "None")
-
-Complete the task end-to-end. Only stop if truly blocked.
-```
-
-## Completion
-
-When all epics are complete:
-
-1. Update all epic statuses
-2. Generate final summary:
-   ```
-   ## Blueprint Execution Complete
-
-   ### Overview
-   - Total Epics: X
-   - Total Tasks: Y
-   - Successful: Z
-   - Failed: W
-
-   ### Implementation Summary
-   [High-level summary of what was built]
-
-   ### Next Steps
-   [Recommendations for testing, deployment, or follow-up work]
-   ```
-
-## Commands During Execution
-
-User can interrupt execution with:
-
-- **"pause"** - Stop after current wave completes
-- **"status"** - Show current execution state
-- **"skip [task-id]"** - Skip a specific task
-- **"retry [task-id]"** - Retry a failed task
+---
 
 ## Interruption Policy
 
-**Goal:** Maximize autonomous execution. Only interrupt for genuine decisions.
+**Goal: zero interruptions between start and completion.** Inputs were front-loaded at blueprint creation and mode was chosen in Phase 2. Everything after that should be autonomous.
 
-### DO Interrupt For:
-- Pre-flight user inputs (configs, keys, decisions)
-- Epic checkpoint reviews
-- Unresolvable errors or blockers
-- Actions outside granted permissions
-- Genuinely ambiguous instructions
+**Interrupt for:**
+- Missing permission allowlist (Phase 0 — before starting, not during)
+- Unresolvable blockers, or systemic failure (>50% of an epic failing)
+- Epic checkpoints, only if the user asked for them
+- Destructive actions outside the blueprint's scope
 
-### DO NOT Interrupt For:
+**Do not interrupt for:**
 - File read/write/edit permissions
-- Running tests or build commands
-- Standard dev tool usage
-- Implementation details covered by the blueprint
-- "Is this OK?" confirmations for routine operations
-- Minor decisions that don't affect the outcome
+- Running tests or builds
+- Implementation details the blueprint covers
+- "Is this OK?" on routine operations
+- Reporting progress mid-wave
 
-### If Uncertain
-Ask yourself: "Is this a project decision or a coding operation?"
-- **Project decision** → Interrupt and ask
-- **Coding operation** → Execute autonomously
+**When uncertain:** is this a *project decision* or a *coding operation*? Project decision → ask. Coding operation → execute.
+
+---
+
+## Commands During Execution
+
+- `pause` — stop after the current wave
+- `status` — show manifest state
+- `skip [task-id]` — mark skipped, unblock its dependents
+- `retry [task-id]` — re-run with a fresh subagent
+
+---
+
+## Completion
+
+```
+## Blueprint Execution Complete
+
+Epics: X   Tasks: Y   ✓ Z   ✗ W   ⊘ V
+
+### What Was Built
+[High-level summary]
+
+### Failures
+- task-XX: [error] → [suggested fix]
+
+### Blocked on Skipped Inputs
+- task-YY: needs STRIPE_API_KEY
+
+### Next Steps
+[Testing, deployment, or follow-up recommendations]
+```
+
+---
 
 ## Remember
 
-- **Front-load user inputs** - Gather ALL "Needed from User" items before starting each epic
-- **Grant subagent permissions** - Use `allowed_tools` to enable autonomous file/code operations
-- Launch ALL independent tasks in parallel (no arbitrary limits)
-- Update blueprint files in real-time as status changes
-- Stop at epic boundaries for review (not mid-task for routine operations)
-- On failure: continue independent branches, block dependents
-- Always add implementation notes to completed tasks
-- Only interrupt for genuine blockers, not routine confirmations
-- Skipped user inputs cause tasks to block when reached
+- All `Agent` calls for a wave in **one message** — nothing between them
+- Subagents write their own status; you reconcile the manifest per wave
+- Never poll for completion — you are notified
+- `Complexity` drives model and effort; use it
+- `Files` drives wave packing; respect ownership boundaries
+- Front-loaded inputs mean you should never ask a question mid-run
+- On failure, continue every independent branch
