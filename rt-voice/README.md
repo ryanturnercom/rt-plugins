@@ -22,7 +22,22 @@ theme = "default"
 
 # Master volume (0.0 to 1.0)
 volume = 0.8
+
+# Minimum seconds between two plays of the same event (0 = play every fire)
+cooldown = 1.5
 ```
+
+## Performance
+
+Sounds play asynchronously. The hook process decides which file to play, hands
+it to a detached process, and exits — Claude Code never waits for audio to
+finish. On a typical machine the hook returns in ~150ms regardless of how long
+the clip runs.
+
+Because nothing serialises playback any more, each event is debounced by
+`cooldown` seconds. `PreToolUse` fires once per tool call and Claude Code issues
+tool calls in parallel, so this collapses a burst into a single sound instead of
+several overlapping copies.
 
 ## Supported Events
 
@@ -30,7 +45,6 @@ volume = 0.8
 - `SessionEnd` - When a session ends
 - `UserPromptSubmit` - When user sends a message
 - `PreToolUse` - Before a tool runs
-- `PostToolUse` - After a tool completes
 - `PermissionRequest` - When permission dialog shows
 - `Notification` - When Claude sends a notification
 - `Stop` - When main agent finishes responding
@@ -47,7 +61,7 @@ themes/my-theme/
 ├── PreToolUse/           # Folder = random selection
 │   ├── sound1.mp3
 │   └── sound2.mp3
-└── PostToolUse.ogg
+└── Stop.ogg
 ```
 
 Supported formats: `.mp3`, `.wav`, `.ogg`

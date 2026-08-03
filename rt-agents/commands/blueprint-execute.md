@@ -136,7 +136,10 @@ USER INPUTS (already collected — use directly, never prompt for them):
 
 CONTEXT FROM COMPLETED DEPENDENCIES:
   <for each id in depends_on, one line: what it built and the interface it
-   exposed, taken from its Implementation Notes. Omit if depends_on is empty.>
+   exposed. Prefer the dependency's pinned `interface` from the manifest —
+   that is the contract both tasks were authored against. Fall back to its
+   Implementation Notes if `interface` is null, and note any place the notes
+   contradict the pinned contract. Omit if depends_on is empty.>
 ```
 
 That dependency context is worth including. It is the difference between an agent

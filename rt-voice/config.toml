@@ -5,7 +5,12 @@
 enabled = true
 
 # Theme name (folder name in themes/)
-theme = "clyde"
+theme = "default"
 
 # Master volume (0.0 to 1.0)
 volume = 0.8
+
+# Minimum seconds between two plays of the same event. Playback is async, so
+# without this a burst of parallel tool calls would stack overlapping copies of
+# the same clip. Set to 0 to play every single fire.
+cooldown = 1.5

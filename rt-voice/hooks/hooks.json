@@ -40,16 +40,6 @@
         ]
       }
     ],
-    "PostToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python \"${CLAUDE_PLUGIN_ROOT}/scripts/play_sound.py\" PostToolUse"
-          }
-        ]
-      }
-    ],
     "PermissionRequest": [
       {
         "hooks": [

@@ -66,10 +66,11 @@ Creates structured implementation blueprints with epics and tasks. Best results 
 
 **How it works:**
 
-1. **Designs the skeleton centrally** — epics, tasks, dependencies, file ownership, and complexity are decided in one place, where global reasoning is possible. Presented as a table for a single approval gate.
-2. **Front-loads every user input** — all credentials, decisions, and approvals are collected here, once, and written to the blueprint's `inputs.md`. Execution never has to ask.
-3. **Fans out authoring** — one subagent per epic writes that epic's files, all spawned in parallel. A six-epic blueprint goes from ~40 sequential writes to a single wave.
-4. **Writes a manifest** — the blueprint's `manifest.json` becomes the machine-readable source of truth for structure and status.
+1. **Surveys the codebase** — delegated to a single `Explore` agent on large repos, which returns a compact map instead of a file dump. Keeps the architect's context small for every phase that follows.
+2. **Designs the skeleton centrally** — epics, tasks, dependencies, file ownership, complexity, and **the exact interfaces that cross task boundaries** are decided in one place, where global reasoning is possible.
+3. **Approves and collects inputs in one interaction** — the skeleton table, the approval question, and every credential or decision arrive in the same turn. One human round-trip, not two. Everything is written to the blueprint's `inputs.md` so execution never has to ask.
+4. **Fans out authoring** — one subagent per epic writes that epic's files, all spawned in parallel. A six-epic blueprint goes from ~40 sequential writes to a single wave. Epics with no `deep` task are authored on Sonnet; oversized epics are sharded along the dependency graph.
+5. **Writes a manifest** — the blueprint's `manifest.json` becomes the machine-readable source of truth for structure and status. Written *after* the fan-out is dispatched, so it overlaps with the authors instead of delaying them.
 
 Each blueprint gets its **own directory** under `.blueprints/`, named `<date>_<slug>/`, holding its own manifest, inputs, and epics. Two blueprints created at the same time never share a file, so concurrent `blueprint-create` runs can't clobber each other's inputs or manifest.
 
@@ -94,6 +95,8 @@ Pass `swarm` to author and critique with a `Workflow` pipeline — each epic's t
 - Maximize disjoint file ownership — overlapping files can't run concurrently
 - Target 6–12 parallel-safe tasks per epic (runtime caps concurrency at `min(16, cores-2)`)
 - Minimize dependency *depth*, not count — wall-clock follows the longest chain
+- Balance task counts across epics — authoring waits on the slowest single epic
+- Pin every cross-task interface centrally — two authors that can't see each other will otherwise invent two incompatible signatures
 - Mark complexity honestly — `mechanical` tasks run on a faster model at execution time
 
 ---
@@ -224,6 +227,13 @@ mode = "standard"                  # "standard" or "swarm"
 stop_at_epic_checkpoints = false   # run straight through
 max_parallel = 10                  # soft cap per wave
 model_for_mechanical = "sonnet"    # model for **Complexity:** mechanical tasks
+
+[documentation]
+# Defaults for documentation-create
+output_dir = ".rt-documentation"   # output directory, relative to project root
+repo_url = ""                      # repository URL, linked in the footer
+default_mode = "verbatim"          # section content mode: verbatim | summarize
+default_print = true               # default print inclusion for sections
 ```
 
 ### Config Sections
@@ -234,6 +244,7 @@ model_for_mechanical = "sonnet"    # model for **Complexity:** mechanical tasks
 | `[blueprint.context]` | Architectural patterns and conventions |
 | `[blueprint.variables]` | Custom template variables |
 | `[execution]` | Execution mode, concurrency, and model defaults |
+| `[documentation]` | Output location and default section rendering |
 
 ## Task Format
 
@@ -244,7 +255,7 @@ Generated tasks include:
 - **Files** — every path the task creates or modifies; drives conflict-free wave packing
 - **Parallel-safe** — whether the task can run alongside others
 - **Complexity** — `mechanical` | `standard` | `deep`; drives model and effort selection
-- **Context** — tech stack + architectural context
+- **Context** — tech stack, architectural context, and the pinned interfaces of every dependency
 - **User Inputs** — values collected at blueprint creation, inlined and ready to use
 - **Instructions** — step-by-step implementation guide
 - **Verification** — the exact command to run and what passing looks like
@@ -258,7 +269,7 @@ The plugin ships five agent definitions in `agents/`. Each sets its own model, r
 
 | Agent | Model / Effort | Role |
 |-------|----------------|------|
-| `blueprint-author` | session model, high | Writes one epic's task files. Read/Write/Glob/Grep only — cannot touch source code. |
+| `blueprint-author` | sonnet or session model, high | Writes one epic's (or one shard's) task files. Sonnet when the epic has no `deep` task. Read/Write/Glob/Grep only — cannot touch source code. |
 | `blueprint-mechanical` | sonnet, low | Executes tasks whose instructions fully determine the output. |
 | `blueprint-standard` | session model, medium | Executes tasks needing normal implementation judgment. |
 | `blueprint-deep` | session model, high | Executes tasks needing architectural judgment. |
